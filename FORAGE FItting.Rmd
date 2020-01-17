@@ -9,29 +9,119 @@ output: html_document
 
 1. Possible outliers in covariates and responses except for the Temperature.
 2. Signs of collenarity between prey and predator body masses.
-3. Attack rate increases near-linearly with predator and prey bodymass.
-4. Handling times increases with prey body mass partiucalrly for invertebrates and vertebrates. Not as clear for protozoans.
+3. Relationships:
+- Handling times increases with prey body mass particucarly for invertebrates and vertebrates. Not as clear for protozoans.
+Handling time increases more clearly with Prey/Predator bosy mass and slope looks more similar between groups.
 No clear relationship with predator body mass.
-Attack rates increase with both prey and predator body masses.
-5. No significant interactions with temperature only. Some signs of interactions when broken into groups.
+- Attack rates increase with both prey and predator body masses.
+- No clear relationships with temperature.
+4.  No significant interactions with temperature only. Some signs of interactions when broken into groups.
 
 
-I will start with a model with no interactions. Apply the model, model selection, model validation. If the validation shows that there are patterns in the residuals, I will investigate why. Adding interactions may be an option to improve the model.
+I will start with a model with no interactions.
+
+
+Attack rate ~ Predator Body mass + Prey Body mass+Temp
+
+
+Handling time ~ Predator Body mass + Prey Body mass+Temp
+
+Handling time ~ Prey/Predator body mass+Temp
+
+Consider residuals.
+
+Consider interaction with temperature.
+
+Apply the model, model selection, model validation. If the validation shows that there are patterns in the residuals, I will investigate why. Adding interactions may be an option to improve the model.
+
+```{r echo=FALSE, warning=FALSE, message=FALSE}
+
+library (ggplot2)
+library(dplyr)          # for data manipulation
+library(tidyr)          # for data shaping
+library(ggpubr)
+library(gridExtra)
+library(car)
+library(lattice)
+#work desktop
+source("C:/Users/Tania Barychka/OneDrive/Desktop/HighstatLibV10.R")
+```
+
+
+
+```{r echo=FALSE}
+#work
+forage_db<- read.csv("C:/Users/Tania Barychka/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
+
+
+#home
+#forage_db<- read.csv("C:/Users/Etherian/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
+
+#laptop
+#forage_db<- read.csv("C:/Users/Tania/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
+
+
+#reduce data set to the variables we're interested in. I'll remove angiosperms and Nas.
+forage_db$L.PredBM<-log10(forage_db$Predator.mass..mg.)
+forage_db$L.PreyBM<-log10(forage_db$Prey.mass..mg.)
+forage_db$L.Fitted.a..median.of.BS.samples.<-log10(forage_db$Fitted.a..median.of.BS.samples.)
+forage_db$L.Fittted.h..day.<-log10(forage_db$Fittted.h..day.)
+
+df<-cbind(forage_db$L.PredBM, forage_db$L.PreyBM, forage_db$L.Fitted.a..median.of.BS.samples., forage_db$L.Fittted.h..day., forage_db$Temp..C.., forage_db$Vert.invert)
+
+colnames(df)<-c("LogPredBM", "LogPreyBM", "LogFittedAR", "LogFittedH_day", "Temp_c", "Vert.invert")
+
+df<-as.data.frame(df)
+
+df_no<-df[df$Vert.invert!="" & df$Vert.invert!="Angiosperm",]
+head(df_no)
+
+```
 
 
 A. Attack rates
 --
 
-1.A Model with no interactions
+**Attack rate ~ Predator Body mass+Prey Body Mass+Temp_c**
 
-```{r echo=FALSE}
+```{r}
+
+m1<-lm(LogFittedAR~LogPreyBM+LogPredBM+Temp_c, data=df_no)
+summary(m1)
+
+drop1(m1,test="F")
+
+anova(m1)
+
+step(m1)
 
 ```
 
 B. Handling times
 --
-1.B Model with no interactions
+**Handling time ~ Predator Body mass+Prey Body Mass+Temp_c**
 
 ```{r echo=FALSE}
 
+m2<-lm(LogFittedH_day~LogPreyBM+LogPredBM+Temp_c, data=df_no)
+summary(m2)
+
+drop1(m2,test="F")
+
+anova(m2)
+
+```
+
+**Handling time ~ Prey/Predator body mass+Temp**
+
+```{r echo=FALSE}
+
+m3<-lm(log10(Fittted.h..day.)~log10(Prey.mass..mg./Predator.mass..mg.)+Temp..C.., data=forage_db)
+summary(m3)
+
+drop1(m3,test="F")
+
+anova(m3)
+
+anova(m2,m3)
 ```
