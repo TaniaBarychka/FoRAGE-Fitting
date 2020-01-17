@@ -1,0 +1,37 @@
+---
+title: "Forage Fitting"
+author: "Tania Barychka"
+date: "17/01/2020"
+output: html_document
+---
+
+**Summary from data exploration**
+
+1. Possible outliers in covariates and responses except for the Temperature.
+2. Signs of collenarity between prey and predator body masses.
+3. Attack rate increases near-linearly with predator and prey bodymass.
+4. Handling times increases with prey body mass partiucalrly for invertebrates and vertebrates. Not as clear for protozoans.
+No clear relationship with predator body mass.
+Attack rates increase with both prey and predator body masses.
+5. No significant interactions with temperature only. Some signs of interactions when broken into groups.
+
+
+I will start with a model with no interactions. Apply the model, model selection, model validation. If the validation shows that there are patterns in the residuals, I will investigate why. Adding interactions may be an option to improve the model.
+
+
+A. Attack rates
+--
+
+1.A Model with no interactions
+
+```{r echo=FALSE}
+
+```
+
+B. Handling times
+--
+1.B Model with no interactions
+
+```{r echo=FALSE}
+
+```
