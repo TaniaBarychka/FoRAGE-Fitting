@@ -3,6 +3,8 @@ title: "Forage Fitting"
 author: "Tania Barychka"
 date: "17/01/2020"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
 **Summary from data exploration**
@@ -45,6 +47,11 @@ library(car)
 library(lattice)
 #work desktop
 source("C:/Users/Tania Barychka/OneDrive/Desktop/HighstatLibV10.R")
+library(RColorBrewer)
+
+# Create customized color palette
+library(colorBrewer)
+mycol = c(brewer.pal(name="Dark2", n = 8), brewer.pal(name="Paired", n = 6))
 ```
 
 
@@ -52,6 +59,9 @@ source("C:/Users/Tania Barychka/OneDrive/Desktop/HighstatLibV10.R")
 ```{r echo=FALSE}
 #work
 forage_db<- read.csv("C:/Users/Tania Barychka/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
+forage_db<-forage_db[-c(2084:2682),]
+
+#summary(forage_db)
 
 
 #home
@@ -124,4 +134,62 @@ drop1(m3,test="F")
 anova(m3)
 
 anova(m2,m3)
+```
+
+Ecto- and Endotherm Grouping
+---
+
+It is possible that the relationships exist withing endo- and ectotherms' groups rather than with vert vs invert.This will also be handy becasue we would like to parameterise endo- and ectortherms differently in the Madingley. 
+
+Unfortumately, FoRAGE databse does not distinguish between endo and ectotherms. We know that:
+
+- Invertebrates (*n*=1520) are *ecothermic*
+
+- Vertebrates (*n*= 470) can be either. Examples of ectothermic vertebrates are snales, reptiles, fish
+
+- Angiosperms (*n* = 2) we can remove.
+
+- Protozoans (*n*= 91) can also remove as likely not represented in the model. [Single-cell eukoryotes, ~0.01-0.05 mm in size thoygh up to 0.5 mm are faily common]
+
+Let's have a look at the composition of our sample.
+
+```{r }
+
+mg1<-ggplot(forage_db, aes(Major.grouping.1))+geom_histogram(stat="count")
+
+
+mg1+theme_bw(base_size = 13, base_family = "")+ theme(panel.border = element_blank(),panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),strip.background = element_rect(colour="white", fill="white"), strip.text.x = element_text(size = 14), legend.position = "bottom", legend.title=element_blank())+ theme(axis.text.x = element_text(angle = 90))+theme(axis.title.x=element_blank())
+
+
+#Share of groups 1 subgroups in invertebrates
+
+invertGr1<-ggplot(forage_db [forage_db$Vert.invert!="Angiosperm" & forage_db$Vert.invert!="Protozoan",], aes(Vert.invert))+geom_bar(aes(fill=Major.grouping.1))
+invertGr1+theme_bw(base_size = 13, base_family = "")+ theme(panel.border = element_blank(),panel.grid.major = element_blank(),
+panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),strip.background = element_rect(colour="white", fill="white"), strip.text.x = element_text(size = 14), legend.position = "bottom", legend.title=element_blank())+theme(axis.title.x=element_blank())+scale_fill_manual(values=mycol)
+
+#Share of group 1 in vertebrates
+
+db_vertInvert<-forage_db[forage_db$Vert.invert!="Angiosperm" & forage_db$Vert.invert!="Protozoan",]
+#which(db_vertInvert$Vert.invert=="Protozoan")
+table( db_vertInvert$Major.grouping.1,db_vertInvert$Vert.invert)
+```
+
+
+- Archnids = ectotherm 
+
+- Fish = ectotherm
+
+- Reptile = ecotherm
+
+- Bird = endotherm
+
+- Mammal = endotherm
+
+```{r echo=FALSE}
+
+forage_db$EctoEndo<-ifelse(forage_db$Major.grouping.1=="Bird" | forage_db$Major.grouping.1=="Mammal", "Endo", "Ecto" )
+#lets check
+
+table(forage_db$Major.grouping.1, forage_db$EctoEndo)
 ```
