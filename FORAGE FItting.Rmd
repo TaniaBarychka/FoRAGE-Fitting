@@ -20,15 +20,7 @@ No clear relationship with predator body mass.
 4.  No significant interactions with temperature only. Some signs of interactions when broken into groups.
 
 
-I will start with a model with no interactions.
-
-
-Attack rate ~ Predator Body mass + Prey Body mass+Temp
-
-
-Handling time ~ Predator Body mass + Prey Body mass+Temp
-
-Handling time ~ Prey/Predator body mass+Temp
+I will start with simple models with no interactions.
 
 Consider residuals.
 
@@ -50,7 +42,7 @@ source("C:/Users/Tania Barychka/OneDrive/Desktop/HighstatLibV10.R")
 library(RColorBrewer)
 
 # Create customized color palette
-library(colorBrewer)
+library(RColorBrewer)
 mycol = c(brewer.pal(name="Dark2", n = 8), brewer.pal(name="Paired", n = 6))
 ```
 
@@ -59,6 +51,7 @@ mycol = c(brewer.pal(name="Dark2", n = 8), brewer.pal(name="Paired", n = 6))
 ```{r echo=FALSE}
 #work
 forage_db<- read.csv("C:/Users/Tania Barychka/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
+
 forage_db<-forage_db[-c(2084:2682),]
 
 #summary(forage_db)
@@ -71,30 +64,176 @@ forage_db<-forage_db[-c(2084:2682),]
 #forage_db<- read.csv("C:/Users/Tania/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
 
 
-#reduce data set to the variables we're interested in. I'll remove angiosperms and Nas.
+#reduce data set to the variables we're interested in. 
 forage_db$L.PredBM<-log10(forage_db$Predator.mass..mg.)
 forage_db$L.PreyBM<-log10(forage_db$Prey.mass..mg.)
 forage_db$L.Fitted.a..median.of.BS.samples.<-log10(forage_db$Fitted.a..median.of.BS.samples.)
 forage_db$L.Fittted.h..day.<-log10(forage_db$Fittted.h..day.)
 
-df<-cbind(forage_db$L.PredBM, forage_db$L.PreyBM, forage_db$L.Fitted.a..median.of.BS.samples., forage_db$L.Fittted.h..day., forage_db$Temp..C.., forage_db$Vert.invert)
+#add ecto and endotherms
+forage_db$EctoEndo<-ifelse(forage_db$Major.grouping.1=="Bird" | forage_db$Major.grouping.1=="Mammal", "Endo", "Ecto" )
 
-colnames(df)<-c("LogPredBM", "LogPreyBM", "LogFittedAR", "LogFittedH_day", "Temp_c", "Vert.invert")
+#I'll remove angiosperms, protozoans and Nas.
 
-df<-as.data.frame(df)
-
-df_no<-df[df$Vert.invert!="" & df$Vert.invert!="Angiosperm",]
-head(df_no)
+forage_db<-forage_db[forage_db$Vert.invert!="" & forage_db$Vert.invert!="Angiosperm" ,]
+table(forage_db$Vert.invert)
+#& forage_db$Vert.invert!="Protozoan"
 
 ```
 
 
-A. Attack rates
+```{r eval=FALSE, echo=FALSE}
+
+
+df<-cbind(forage_db$L.PredBM, forage_db$L.PreyBM, forage_db$L.Fitted.a..median.of.BS.samples., forage_db$L.Fittted.h..day., forage_db$Temp..C.., forage_db$EctoEndo)
+
+colnames(df)<-c("LogPredBM", "LogPreyBM", "LogFittedAR", "LogFittedH_day", "Temp_c", "EctoEndo")
+
+df<-as.data.frame(df)
+
+df$VertInvert<-forage_db$Vert.invert
+
+
+df_no<-df[df$VertInvert!="" & df$VertInvert!="Angiosperm",]
+table(df_no$VertInvert, df_no$EctoEndo)
+
+```
+
+
+A. Attack rate
 --
 
-**Attack rate ~ Predator Body mass+Prey Body Mass+Temp_c**
 
 ```{r}
+
+#Attack rate ~ Predator body mass
+ar1_pred<-lm(forage_db$L.Fitted.a..median.of.BS.samples.~forage_db$L.PredBM)
+summary(ar1_pred)
+anova(ar1_pred)
+
+#Attack rate ~Prey body mass
+ar1_prey<-lm(forage_db$L.Fitted.a..median.of.BS.samples.~forage_db$L.PreyBM)
+summary(ar1_prey)
+anova(ar1_prey)
+
+#Attack rate ~Prey and Pred Body mass
+ar1_preyPred<-lm(forage_db$L.Fitted.a..median.of.BS.samples.~forage_db$L.PredBM+forage_db$L.PreyBM)
+summary(ar1_preyPred)
+anova(ar1_preyPred)
+
+#run a drop test
+drop1(ar1_preyPred, test="F")
+```
+
+AIC and the residual sum of squares of the model with prey body mass is just slightly smaller. Will keep prey body mass for now.
+
+Let's look at potential interaction with temperature.
+
+
+```{r}
+ar1_preyPredTemp<-lm(forage_db$L.Fitted.a..median.of.BS.samples.~forage_db$L.PredBM+forage_db$L.PreyBM+forage_db$Temp..C..)
+summary(ar1_preyPredTemp)
+anova(ar1_preyPredTemp)
+drop1(ar1_preyPredTemp)
+
+#Fit a model with predator BM and compare
+#ar1_predTemp<-lm(forage_db$L.Fitted.a..median.of.BS.samples.~forage_db$L.PredBM+forage_db$Temp..C..)
+#anova(ar1_preyPredTemp, ar1_predTemp)
+
+```
+
+*Model Selection*
+
+```{r}
+
+step(ar1_preyPredTemp)
+```
+
+Sadly, I cant compare models directly as the number of non-na datapoints vary between cases.
+
+```{r}
+
+df<-cbind(as.numeric(forage_db$L.PredBM), as.numeric(forage_db$L.PreyBM), as.numeric(forage_db$L.Fitted.a..median.of.BS.samples.), as.numeric(forage_db$L.Fittted.h..day.), as.numeric(forage_db$Temp..C..))
+
+colnames(df)<-c("LogPredBM", "LogPreyBM", "LogFittedAR", "LogFittedH_day", "Temp_c")
+
+df<-as.data.frame(df)
+
+df$VertInvert<-forage_db$Vert.invert
+df$EctoEndo<-forage_db$EctoEndo
+
+
+df_no<-df[df$VertInvert!="" & df$VertInvert!="Angiosperm",]
+table(df_no$VertInvert, df_no$EctoEndo)
+
+df_na<-na.omit(df_no)
+
+ar1_preyPredTemp_na<-lm(df_na$LogFittedAR~df_na$LogPredBM+df_na$LogPreyBM+df_na$Temp_c)
+
+step(ar1_preyPredTemp_na)
+
+```
+
+It looks like the model with Predator body mass and temperature is very marginally better than the full model (Prey and predator body mass and temp) withou Nas removed. 
+
+Step selection (with Na's removed from dataset) suggest that that full model is very slightly better (AIC of 909.32) compared to the model without Prey biomass (AIC = 910.54). Removal of temperature and predator biomass increase AICs to 1026.64 and 1803.60, respectively.
+
+
+*Model Validation*
+
+I'm going to proceed with predator body mass and temperature only.
+
+1. Plot (standardised) residuals against fitted values to assess homogeneity.
+2. Make a histogram of teh residuals to verify normality. Can also use QQ-plot.
+3. Plot the residuals against each  explanatory variable. If there is a pattern, we're violating the independence assumption.
+Plot the residuals against prey bodymass (not used in the model). If there is a patter, include prey body mass and refit the model. If the residuals patterms disappear, include prey body mass (even of not significant)
+4. Assess the model for influential observations. A useful tool is the Cook distance function.
+
+
+```{r fig.height=10, fig.width=10}
+
+ar1_opt<-lm(df_na$LogFittedAR~df_na$LogPredBM+df_na$Temp_c)
+
+op<-par(mfrow=c(2,2))
+
+plot(ar1_opt)
+
+
+#win.graph();
+op<-par(mfrow=c(2,2))
+#Check for normality
+E<-rstandard(ar1_opt)
+
+hist(E)
+qqnorm(E)
+
+#check for independence and homogeneity: residuals versus individual explanatory variables
+plot(y=E, x=df_na$LogPredBM, xlab="log10 Predator bodymass", ylab="Residuals")
+abline(0,0)
+
+#Residuals against Temp
+plot(E~df_na$Temp_c, xlab="Temp, C", ylab="Residuals")
+abline(0,0)
+
+#Residuals against Prey Bodymass
+plot(E~df_na$LogPreyBM, xlab="Prey bodymass", ylab="Residuals")
+abline(0,0)
+par(op)
+```
+
+1. There is some evidence of non-constant variance as points are clustered in the middle, and of uniform errors (S-shaped pattern in QQ plot: the fit in the centre is fine, but the largest and the smallest residuals are too small).
+
+2. A bit of clustering for fitted values vs square root of standardised residuals. But not too bad.
+
+3. We have three influential points that need investigating: 172; 374 (?) and 375 (?).We will leave them out and refit the model (p402); check the new slope and the standard error on the slope.
+
+4. I can't see a strong pattern in residuals vs explanatory variables plot including prey bodymass. I'm going to leave it out for now.
+
+*As errors are unform, we would need to fit a different model to the data.* 
+
+
+
+```{r echo=FALSE, eval=FALSE}
 
 m1<-lm(LogFittedAR~LogPreyBM+LogPredBM+Temp_c, data=df_no)
 summary(m1)
@@ -107,11 +246,13 @@ step(m1)
 
 ```
 
-B. Handling times
+B. Handling time
 --
-**Handling time ~ Predator Body mass+Prey Body Mass+Temp_c**
 
-```{r echo=FALSE}
+
+```{r echo=FALSE, eval=FALSE}
+
+#Handling time ~ Predator Body mass+Prey Body Mass+Temp_c
 
 m2<-lm(LogFittedH_day~LogPreyBM+LogPredBM+Temp_c, data=df_no)
 summary(m2)
@@ -122,9 +263,10 @@ anova(m2)
 
 ```
 
-**Handling time ~ Prey/Predator body mass+Temp**
 
-```{r echo=FALSE}
+
+```{r echo=FALSE, eval=FALSE}
+#Handling time ~ Prey/Predator body mass+Temp
 
 m3<-lm(log10(Fittted.h..day.)~log10(Prey.mass..mg./Predator.mass..mg.)+Temp..C.., data=forage_db)
 summary(m3)
@@ -136,60 +278,14 @@ anova(m3)
 anova(m2,m3)
 ```
 
-Ecto- and Endotherm Grouping
----
 
-It is possible that the relationships exist withing endo- and ectotherms' groups rather than with vert vs invert.This will also be handy becasue we would like to parameterise endo- and ectortherms differently in the Madingley. 
+```{r}
 
-Unfortumately, FoRAGE databse does not distinguish between endo and ectotherms. We know that:
+ht1_prey<-lm(forage_db$L.Fittted.h..day.~forage_db$L.PreyBM)
+summary(ht1_prey)
+anova(ht1_prey)
 
-- Invertebrates (*n*=1520) are *ecothermic*
-
-- Vertebrates (*n*= 470) can be either. Examples of ectothermic vertebrates are snales, reptiles, fish
-
-- Angiosperms (*n* = 2) we can remove.
-
-- Protozoans (*n*= 91) can also remove as likely not represented in the model. [Single-cell eukoryotes, ~0.01-0.05 mm in size thoygh up to 0.5 mm are faily common]
-
-Let's have a look at the composition of our sample.
-
-```{r }
-
-mg1<-ggplot(forage_db, aes(Major.grouping.1))+geom_histogram(stat="count")
-
-
-mg1+theme_bw(base_size = 13, base_family = "")+ theme(panel.border = element_blank(),panel.grid.major = element_blank(),
-panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),strip.background = element_rect(colour="white", fill="white"), strip.text.x = element_text(size = 14), legend.position = "bottom", legend.title=element_blank())+ theme(axis.text.x = element_text(angle = 90))+theme(axis.title.x=element_blank())
-
-
-#Share of groups 1 subgroups in invertebrates
-
-invertGr1<-ggplot(forage_db [forage_db$Vert.invert!="Angiosperm" & forage_db$Vert.invert!="Protozoan",], aes(Vert.invert))+geom_bar(aes(fill=Major.grouping.1))
-invertGr1+theme_bw(base_size = 13, base_family = "")+ theme(panel.border = element_blank(),panel.grid.major = element_blank(),
-panel.grid.minor = element_blank(), axis.line = element_line(colour = "black"),strip.background = element_rect(colour="white", fill="white"), strip.text.x = element_text(size = 14), legend.position = "bottom", legend.title=element_blank())+theme(axis.title.x=element_blank())+scale_fill_manual(values=mycol)
-
-#Share of group 1 in vertebrates
-
-db_vertInvert<-forage_db[forage_db$Vert.invert!="Angiosperm" & forage_db$Vert.invert!="Protozoan",]
-#which(db_vertInvert$Vert.invert=="Protozoan")
-table( db_vertInvert$Major.grouping.1,db_vertInvert$Vert.invert)
-```
-
-
-- Archnids = ectotherm 
-
-- Fish = ectotherm
-
-- Reptile = ecotherm
-
-- Bird = endotherm
-
-- Mammal = endotherm
-
-```{r echo=FALSE}
-
-forage_db$EctoEndo<-ifelse(forage_db$Major.grouping.1=="Bird" | forage_db$Major.grouping.1=="Mammal", "Endo", "Ecto" )
-#lets check
-
-table(forage_db$Major.grouping.1, forage_db$EctoEndo)
+ht1_pred<-lm(forage_db$L.Fittted.h..day.~forage_db$L.PredBM)
+summary(ht1_pred)
+anova(ht1_pred)
 ```
