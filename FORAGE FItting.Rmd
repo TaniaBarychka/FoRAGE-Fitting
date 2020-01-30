@@ -281,11 +281,160 @@ anova(m2,m3)
 
 ```{r}
 
+#prey
 ht1_prey<-lm(forage_db$L.Fittted.h..day.~forage_db$L.PreyBM)
 summary(ht1_prey)
 anova(ht1_prey)
 
+#predator
 ht1_pred<-lm(forage_db$L.Fittted.h..day.~forage_db$L.PredBM)
 summary(ht1_pred)
 anova(ht1_pred)
+
+#prey/predator
+ht1_preyOverpred<-lm(log10(Fittted.h..day.)~log10(Prey.mass..mg./Predator.mass..mg.), data=forage_db)
+summary(ht1_preyOverpred)
+anova(ht1_preyOverpred)
+
+#prey and pred
+ht1_preyPred<-lm(forage_db$L.Fittted.h..day.~forage_db$L.PreyBM+forage_db$L.PredBM)
+summary(ht1_preyPred)
+anova(ht1_preyPred)
+
+drop1(ht1_preyPred)
+
+```
+
+The model with both predator and prey biomass has the lowest AIC score.
+
+```{r}
+#prey, pred and temp
+ht1_preyPredTemp<-lm(forage_db$L.Fittted.h..day.~forage_db$L.PreyBM+forage_db$L.PredBM+forage_db$Temp..C..)
+summary(ht1_preyPredTemp)
+anova(ht1_preyPredTemp)
+drop1(ht1_preyPredTemp)
+
+#prey/pred+Temp
+ht1_preyOverpredTemp<-lm(log10(Fittted.h..day.)~log10(Prey.mass..mg./Predator.mass..mg.)+forage_db$Temp..C.., data=forage_db)
+summary(ht1_preyOverpredTemp)
+anova(ht1_preyOverpredTemp)
+
+drop1(ht1_preyOverpredTemp)
+
+#prey, Temp, pred
+ht1_preyTempPred<-lm(forage_db$L.Fittted.h..day.~forage_db$L.PreyBM+forage_db$Temp..C..+forage_db$L.PredBM)
+summary(ht1_preyTempPred)
+```
+
+At the moment, both predator and prey body mass are significant.The best model is harvest rate~prey/predator bodymass.
+
+Temperature is not significant on its own. Perhaps as an interaction term? 
+
+I'll also have a look at Ecto Endo grouping.
+
+**Model validation**
+
+```{r}
+
+df_hr<-cbind(as.numeric(forage_db$Predator.mass..mg.), as.numeric(forage_db$Prey.mass..mg.), as.numeric(forage_db$L.Fitted.a..median.of.BS.samples.), as.numeric(forage_db$L.Fittted.h..day.), as.numeric(forage_db$Temp..C..))
+
+colnames(df_hr)<-c("PredBM", "PreyBM", "LogFittedAR", "LogFittedH_day", "Temp_c")
+
+df_hr<-as.data.frame(df_hr)
+
+df_hr$VertInvert<-forage_db$Vert.invert
+df_hr$EctoEndo<-forage_db$EctoEndo
+
+
+df_no_hr<-df_hr[df_hr$VertInvert!="" & df_hr$VertInvert!="Angiosperm",]
+table(df_no_hr$VertInvert, df_no_hr$EctoEndo)
+
+df_na_hr<-na.omit(df_no_hr)
+```
+
+
+
+```{r fig.height=10, fig.width=10}
+
+hr1_opt<-lm(df_na_hr$LogFittedH_day~log10(df_na_hr$PreyBM/df_na_hr$PredBM))
+op<-par(mfrow=c(2,2))
+
+plot(hr1_opt)
+
+
+#win.graph();
+op<-par(mfrow=c(2,2))
+#Check for normality
+E<-rstandard(hr1_opt)
+
+hist(E)
+qqnorm(E)
+
+#check for independence and homogeneity: residuals versus individual explanatory variables
+plot(y=E, x=log10(df_na_hr$PreyBM/df_na_hr$PredBM), xlab="log10 Prey/Predator bodymass", ylab="Residuals")
+abline(0,0)
+
+#Residuals against Temp
+plot(E~df_na_hr$Temp_c, xlab="Temp, C", ylab="Residuals")
+abline(0,0)
+
+#Residuals against Prey Bodymass
+plot(E~log10(df_na_hr$PreyBM), xlab="Prey bodymass", ylab="Residuals")
+abline(0,0)
+
+
+#Residuals against predator bodymass
+plot(E~log10(df_na_hr$PredBM), xlab="Predator bodymass", ylab="Residuals")
+abline(0,0)
+
+plot(E~as.factor(df_na_hr$EctoEndo), ylab="Residuals")
+par(op)
+
+```
+
+**Residuals as function of ectotherms and endotherms:**
+
+```{r echo=FALSE}
+
+par(mfrow=c(1,2))
+
+
+xyplot(E~Temp_c,groups=df_na_hr$EctoEndo, data = df_na_hr,auto.key = list(corner = c(0, .98)), cex = 1,xlab="Temp, C", ylab="Residuals")
+#abline(0,0)
+
+
+```
+
+**Handling time equivalency based on modelled intercept and slope values**
+
+Run tests assuming equivalency.
+
+```{r echo=FALSE, fig.width=10, fig.height=5}
+
+par(mfrow=c(1,2))
+
+forage_db$L.PredictedPredBM<-(0.01598-0.02*forage_db$L.PreyBM)/0.03921
+plot(forage_db$L.PredBM, forage_db$L.PredictedPredBM, xlab="Log 10 Preditor biomass", ylab="log 10 Predicted preditor biomass")
+
+forage_db$L.PredictedPreyBM<-(0.01598-0.03921*forage_db$L.PredBM)/0.02
+plot(forage_db$L.PreyBM, forage_db$L.PredictedPreyBM, xlab="Log 10 Prey biomass", ylab="log 10 Predicted prey biomass")
+
+
+```
+
+C. Interaction Models
+---
+
+**Attack Rate**
+
+```{r}
+
+ar2_PredTempE<-lm(L.Fitted.a..median.of.BS.samples.~L.PredBM+Temp..C..*as.factor(EctoEndo), data=forage_db)
+summary(ar2_PredTempE)
+anova(ar2_PredTempE)
+
+drop1(ar2_PredTempE)
+
+step(ar2_PredTempE)
+
 ```
