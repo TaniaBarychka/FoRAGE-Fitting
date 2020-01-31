@@ -338,11 +338,13 @@ ggplot(df_na, aes(df_na$L.PredBM,df_na$L.Fitted.a..median.of.BS.samples., colour
 
 library(ggiraphExtra)
 
-
+#this does not work but it should
 ggPredict(ar1_opt_na, interactive = TRUE)
 
 ```
 
+
+Predictions of the current model are over-predicting the data. Look at the model with interaction: hopefully it'd be a better fit.
 
 B. Handling time
 --
