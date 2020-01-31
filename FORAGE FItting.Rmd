@@ -344,7 +344,7 @@ ggPredict(ar1_opt_na, interactive = TRUE)
 ```
 
 
-Predictions of the current model are over-predicting the data. Look at the model with interaction: hopefully it'd be a better fit.
+Predictions of the current model are over-predicting the data. Look at the model with interaction: hopefully it'd be a better fit. Also possibly prey biomass...
 
 B. Handling time
 --
