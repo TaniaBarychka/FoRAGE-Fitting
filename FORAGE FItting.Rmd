@@ -38,8 +38,10 @@ library(gridExtra)
 library(car)
 library(lattice)
 #work desktop
-source("C:/Users/Tania Barychka/OneDrive/Desktop/HighstatLibV10.R")
-library(RColorBrewer)
+#source("C:/Users/Tania Barychka/OneDrive/Desktop/HighstatLibV10.R")
+
+#home desktop
+source("C:/Users/Etherian/OneDrive/Desktop/HighstatLibV10.R")
 
 # Create customized color palette
 library(RColorBrewer)
@@ -50,19 +52,18 @@ mycol = c(brewer.pal(name="Dark2", n = 8), brewer.pal(name="Paired", n = 6))
 
 ```{r echo=FALSE}
 #work
-forage_db<- read.csv("C:/Users/Tania Barychka/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
-
-forage_db<-forage_db[-c(2084:2682),]
+#forage_db<- read.csv("C:/Users/Tania Barychka/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
 
 #summary(forage_db)
 
 
 #home
-#forage_db<- read.csv("C:/Users/Etherian/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
+forage_db<- read.csv("C:/Users/Etherian/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
 
 #laptop
 #forage_db<- read.csv("C:/Users/Tania/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
 
+forage_db<-forage_db[-c(2084:2682),]
 
 #reduce data set to the variables we're interested in. 
 forage_db$L.PredBM<-log10(forage_db$Predator.mass..mg.)
@@ -155,7 +156,9 @@ Sadly, I cant compare models directly as the number of non-na datapoints vary be
 
 df<-cbind(as.numeric(forage_db$L.PredBM), as.numeric(forage_db$L.PreyBM), as.numeric(forage_db$L.Fitted.a..median.of.BS.samples.), as.numeric(forage_db$L.Fittted.h..day.), as.numeric(forage_db$Temp..C..))
 
-colnames(df)<-c("LogPredBM", "LogPreyBM", "LogFittedAR", "LogFittedH_day", "Temp_c")
+#colnames(df)<-c("LogPredBM", "LogPreyBM", "LogFittedAR", "LogFittedH_day", "Temp_c")
+colnames(df)<-c("L.PredBM", "L.PreyBM", "L.Fitted.a..median.of.BS.samples.", "L.Fittted.h..day.", "Temp..C..")
+
 
 df<-as.data.frame(df)
 
@@ -171,6 +174,12 @@ df_na<-na.omit(df_no)
 ar1_preyPredTemp_na<-lm(df_na$LogFittedAR~df_na$LogPredBM+df_na$LogPreyBM+df_na$Temp_c)
 
 step(ar1_preyPredTemp_na)
+
+#Optimal
+ar1_opt_f<-lm(forage_db$L.Fitted.a..median.of.BS.samples.~forage_db$L.PredBM+forage_db$Temp..C..)
+
+summary(ar1_opt_f)
+anova(ar1_opt_f)
 
 ```
 
@@ -196,7 +205,6 @@ ar1_opt<-lm(df_na$LogFittedAR~df_na$LogPredBM+df_na$Temp_c)
 
 op<-par(mfrow=c(2,2))
 
-plot(ar1_opt)
 
 
 #win.graph();
@@ -229,7 +237,7 @@ par(op)
 
 4. I can't see a strong pattern in residuals vs explanatory variables plot including prey bodymass. I'm going to leave it out for now.
 
-*As errors are unform, we would need to fit a different model to the data.* 
+*As errors are unform, we may need to fit a different model to the data.* Spoke to Tim and he felt that test looked alright, no big issues.
 
 
 
@@ -245,6 +253,96 @@ anova(m1)
 step(m1)
 
 ```
+
+
+**Interaction Models**
+
+```{r}
+
+ar2_PredTempE<-lm(L.Fitted.a..median.of.BS.samples.~L.PredBM+Temp..C..*as.factor(EctoEndo), data=forage_db)
+summary(ar2_PredTempE)
+anova(ar2_PredTempE)
+
+drop1(ar2_PredTempE)
+
+step(ar2_PredTempE)
+
+```
+
+AIC of the full model is very marginally smaller (1198.6) than the model with the interaction between temperature and Ecto/Endo (1202.4) 
+
+How do models with and without Temperature- Ecto/Endo interaction compare?
+
+
+```{r}
+
+ar1_opt_na<-lm(L.Fitted.a..median.of.BS.samples.~L.PredBM+df_na$Temp..C.., data=df_na)
+summary(ar1_opt_na)
+
+ar2_PredTempE_na<-lm(L.Fitted.a..median.of.BS.samples.~L.PredBM+df_na$Temp..C..*as.factor(EctoEndo), data=df_na)
+summary(ar1_opt_na)
+
+anova(ar1_opt_na, ar2_PredTempE_na)
+```
+
+Comparing models using anova suggests including the interaction term led to significantly (<.001) improved fit. Two addtional parameters are estimated in more complex model.
+
+Let's do **model validation** again.
+
+
+```{r echo=FALSE}
+op<-par(mfrow=c(2,2))
+
+plot(ar2_PredTempE_na)
+
+
+#win.graph();
+
+#Check for normality
+E<-rstandard(ar2_PredTempE_na)
+
+hist(E)
+qqnorm(E)
+
+#check for independence and homogeneity: residuals versus individual explanatory variables
+plot(y=E, x=df_na$L.PredBM, xlab="log10 Predator bodymass", ylab="Residuals")
+abline(0,0)
+
+#Residuals against Temp
+plot(E~df_na$Temp..C.., xlab="Temp, C", ylab="Residuals")
+abline(0,0)
+
+#Residuals against Prey Bodymass
+plot(E~df_na$L.PreyBM, xlab="Prey bodymass", ylab="Residuals")
+abline(0,0)
+par(op)
+```
+
+
+**Predictions**
+
+```{r}
+newLpredBM=df_na$L.PredBM
+newTemp=df_na$Temp..C..
+
+newdata<-data.frame(newLpredBM=df_na$L.PredBM,newTemp=df_na$Temp..C..)
+
+
+ar1_opt_na<-lm(df_na$L.Fitted.a..median.of.BS.samples.~df_na$L.PredBM+df_na$Temp..C.., data=df_na)
+pred<-predict.lm(ar1_opt_na, newdata)
+plot(df_na$L.PredBM, df_na$L.Fitted.a..median.of.BS.samples.)
+points(pred, df_na$L.PredBM, col="blue")
+
+
+ggplot(df_na, aes(df_na$L.PredBM,df_na$L.Fitted.a..median.of.BS.samples., colour=df_na$Temp..C..))+geom_point()+stat_smooth(method="lm", se=FALSE)
+
+library(ggiraphExtra)
+
+
+ggPredict(ar1_opt_na, interactive = TRUE)
+
+```
+
 
 B. Handling time
 --
@@ -392,6 +490,10 @@ par(op)
 
 ```
 
+
+Some serious problems with the fits: missed variance structure or an explanatory variable.
+
+
 **Residuals as function of ectotherms and endotherms:**
 
 ```{r echo=FALSE}
@@ -399,11 +501,17 @@ par(op)
 par(mfrow=c(1,2))
 
 
-xyplot(E~Temp_c,groups=df_na_hr$EctoEndo, data = df_na_hr,auto.key = list(corner = c(0, .98)), cex = 1,xlab="Temp, C", ylab="Residuals")
-#abline(0,0)
+xyplot(E~Temp_c,groups=df_na_hr$EctoEndo, data = df_na_hr,auto.key = list(corner = c(0, .98)), cex = 1,xlab="Temp, C", ylab="Residuals",panel = function(x, y, ...){
+        
+          panel.xyplot(x,y, ...)
+          panel.abline(h=0,lty=1,lwd=1)
+        })
 
 
 ```
+
+
+
 
 **Handling time equivalency based on modelled intercept and slope values**
 
@@ -415,26 +523,14 @@ par(mfrow=c(1,2))
 
 forage_db$L.PredictedPredBM<-(0.01598-0.02*forage_db$L.PreyBM)/0.03921
 plot(forage_db$L.PredBM, forage_db$L.PredictedPredBM, xlab="Log 10 Preditor biomass", ylab="log 10 Predicted preditor biomass")
+abline(lm(forage_db$L.PredictedPredBM~forage_db$L.PredBM),col="red")
 
 forage_db$L.PredictedPreyBM<-(0.01598-0.03921*forage_db$L.PredBM)/0.02
 plot(forage_db$L.PreyBM, forage_db$L.PredictedPreyBM, xlab="Log 10 Prey biomass", ylab="log 10 Predicted prey biomass")
-
-
-```
-
-C. Interaction Models
----
-
-**Attack Rate**
-
-```{r}
-
-ar2_PredTempE<-lm(L.Fitted.a..median.of.BS.samples.~L.PredBM+Temp..C..*as.factor(EctoEndo), data=forage_db)
-summary(ar2_PredTempE)
-anova(ar2_PredTempE)
-
-drop1(ar2_PredTempE)
-
-step(ar2_PredTempE)
+abline(lm(forage_db$L.PredictedPreyBM~forage_db$L.PreyBM),col="red")
 
 ```
+
+
+It looks like it's predicting ok around 0 but seriously underpredicting at low values and over predicting at high values (if I'm reading this correctly). So I would say not models are not equivalent as they stand now.
+
