@@ -38,11 +38,11 @@ library(gridExtra)
 library(car)
 library(lattice)
 
-install.packages("devtools")
-devtools::install_github("cardiomoon/ggiraphExtra")
+#install.packages("devtools")
+#devtools::install_github("cardiomoon/ggiraphExtra")
 require(ggiraph)
 require(ggiraphExtra)
-require(plyr)
+#require(plyr)
 
 
 #work desktop
@@ -179,7 +179,7 @@ table(df_no$VertInvert, df_no$EctoEndo)
 
 df_na<-na.omit(df_no)
 
-ar1_preyPredTemp_na<-lm(df_na$LogFittedAR~df_na$LogPredBM+df_na$LogPreyBM+df_na$Temp_c)
+ar1_preyPredTemp_na<-lm(df_na$L.Fitted.a..median.of.BS.samples.~df_na$L.PredBM+df_na$L.PreyBM+df_na$Temp..C..)
 
 step(ar1_preyPredTemp_na)
 
@@ -334,6 +334,8 @@ Model validation for the model with inetraction term looks about the same as the
 
 **Predictions**
 
+*Without Temperature and Ecto/Endotherms Interaction*
+
 ```{r fig.height=10, fig.width=10}
 
 newLpredBM=df_na$L.PredBM
@@ -344,6 +346,10 @@ newdata<-data.frame(newLpredBM=df_na$L.PredBM,newTemp=df_na$Temp..C..)
 
 ar1_opt_na=lm(L.Fitted.a..median.of.BS.samples.~L.PredBM+Temp..C.., data=df_na)
 summary(ar1_opt_na)
+
+```
+
+```{r fig.height=10, fig.width=10, echo=FALSE}
 
 #pred<-predict.lm(ar1_opt_na, newdata)
 #plot(L.PredBM, L.Fitted.a..median.of.BS.samples., data=)
@@ -358,8 +364,49 @@ ggPredict(ar1_opt_na, interactive = TRUE)
 
 ```
 
+The model without interaction: 
 
-Predictions of the current model are over-predicting the data. Look at the model with interaction: hopefully it'd be a better fit. Also possibly prey biomass...
+**Log10(Attack Rate)=0.85x+(-4.11+0.05 per 1 degree C), where x=Log10 Predator Body mass**
+
+
+*With Temperature and Ecto/Endotherms Interaction*
+
+
+```{r fig.height=10, fig.width=10}
+
+newLpredBM=df_na$L.PredBM
+newTemp=df_na$Temp..C..
+newEE=df_na$EctoEndo
+
+newdata<-data.frame(newLpredBM=df_na$L.PredBM,newTemp=df_na$Temp..C.., newEE=df_na$EctoEndo)
+
+ar2_opt_na=lm(L.Fitted.a..median.of.BS.samples.~L.PredBM+Temp..C..*EctoEndo, data=df_na)
+summary(ar2_opt_na)
+
+```
+
+```{r fig.height=10, fig.width=10, echo=FALSE}
+
+#pred<-predict.lm(ar1_opt_na, newdata)
+#plot(L.PredBM, L.Fitted.a..median.of.BS.samples., data=)
+#points(pred, df_na$L.PredBM, col="blue")
+
+
+#ggplot(df_na, aes(df_na$L.PredBM,df_na$L.Fitted.a..median.of.BS.samples., colour=df_na$Temp..C..))+geom_point()+stat_smooth(method="lm", se=FALSE)
+
+
+ggPredict(ar2_opt_na, interactive = TRUE)
+
+
+```
+
+Two separate models: 
+
+**Ectotherms: Log10 AR = 0.81 x + (-3.77+0.04 per 1 degree C )**
+
+**Endotherms: Log10 AR = 0.81 x + (-5.87+0.15 per 1 degree C)**
+
+
 
 B. Handling time
 --
@@ -528,6 +575,35 @@ xyplot(E~Temp_c,groups=df_na_hr$EctoEndo, data = df_na_hr,auto.key = list(corner
 ```
 
 
+It's not obvious that residuals for endotherms are separate from ecotherms's residuals.
+
+Alternative models:
+
+HT~ Prey BM+Pred BM+Ecto/Endo
+
+```{r}
+
+ht1_preyPredEE<-lm(L.Fittted.h..day.~L.PreyBM+L.PredBM+factor(EctoEndo), data=forage_db)
+summary(ht1_preyPredEE)
+anova(ht1_preyPredEE)
+drop1(ht1_preyPredEE)
+
+```
+
+
+HT~PreyBM+PredBM+Temp*Ecto/Endo
+
+```{r}
+ht2_preyPredEETemp<-lm(L.Fittted.h..day.~L.PreyBM+L.PredBM+Temp..C..*as.factor(EctoEndo), data=forage_db)
+summary(ht2_preyPredEETemp)
+anova(ht2_preyPredEETemp)
+drop1(ht2_preyPredEETemp)
+```
+
+
+None of the alternative models look to be improving significantly upon the basic prey and predator body mass model. 
+
+I wonder if collinearity between the body masses are too confusing here. Check tomorrow. Other idea is to fit prey/pred with endo ecto...
 
 
 **Handling time equivalency based on modelled intercept and slope values**
