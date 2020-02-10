@@ -37,11 +37,19 @@ library(ggpubr)
 library(gridExtra)
 library(car)
 library(lattice)
+
+install.packages("devtools")
+devtools::install_github("cardiomoon/ggiraphExtra")
+require(ggiraph)
+require(ggiraphExtra)
+require(plyr)
+
+
 #work desktop
-#source("C:/Users/Tania Barychka/OneDrive/Desktop/HighstatLibV10.R")
+source("C:/Users/Tania Barychka/OneDrive/Desktop/HighstatLibV10.R")
 
 #home desktop
-source("C:/Users/Etherian/OneDrive/Desktop/HighstatLibV10.R")
+#source("C:/Users/Etherian/OneDrive/Desktop/HighstatLibV10.R")
 
 # Create customized color palette
 library(RColorBrewer)
@@ -52,13 +60,13 @@ mycol = c(brewer.pal(name="Dark2", n = 8), brewer.pal(name="Paired", n = 6))
 
 ```{r echo=FALSE}
 #work
-#forage_db<- read.csv("C:/Users/Tania Barychka/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
+forage_db<- read.csv("C:/Users/Tania Barychka/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
 
 #summary(forage_db)
 
 
 #home
-forage_db<- read.csv("C:/Users/Etherian/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
+#forage_db<- read.csv("C:/Users/Etherian/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
 
 #laptop
 #forage_db<- read.csv("C:/Users/Tania/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
@@ -175,7 +183,7 @@ ar1_preyPredTemp_na<-lm(df_na$LogFittedAR~df_na$LogPredBM+df_na$LogPreyBM+df_na$
 
 step(ar1_preyPredTemp_na)
 
-#Optimal
+#Optimal: AR~Predator BM + Temp
 ar1_opt_f<-lm(forage_db$L.Fitted.a..median.of.BS.samples.~forage_db$L.PredBM+forage_db$Temp..C..)
 
 summary(ar1_opt_f)
@@ -201,7 +209,7 @@ Plot the residuals against prey bodymass (not used in the model). If there is a 
 
 ```{r fig.height=10, fig.width=10}
 
-ar1_opt<-lm(df_na$LogFittedAR~df_na$LogPredBM+df_na$Temp_c)
+ar1_opt<-lm(df_na$L.Fitted.a..median.of.BS.samples.~df_na$L.PredBM+df_na$Temp..C..)
 
 op<-par(mfrow=c(2,2))
 
@@ -216,15 +224,15 @@ hist(E)
 qqnorm(E)
 
 #check for independence and homogeneity: residuals versus individual explanatory variables
-plot(y=E, x=df_na$LogPredBM, xlab="log10 Predator bodymass", ylab="Residuals")
+plot(y=E, x=df_na$L.PredBM, xlab="log10 Predator bodymass", ylab="Residuals")
 abline(0,0)
 
 #Residuals against Temp
-plot(E~df_na$Temp_c, xlab="Temp, C", ylab="Residuals")
+plot(E~df_na$Temp..C.., xlab="Temp, C", ylab="Residuals")
 abline(0,0)
 
 #Residuals against Prey Bodymass
-plot(E~df_na$LogPreyBM, xlab="Prey bodymass", ylab="Residuals")
+plot(E~df_na$L.PreyBM, xlab="Prey bodymass", ylab="Residuals")
 abline(0,0)
 par(op)
 ```
@@ -268,6 +276,8 @@ drop1(ar2_PredTempE)
 step(ar2_PredTempE)
 
 ```
+
+Predator Body mass and temperature still highly significant on their own. Ecto and Endotherm are not significant on their own but are significant at 5% as an inetraction with temperature.
 
 AIC of the full model is very marginally smaller (1198.6) than the model with the interaction between temperature and Ecto/Endo (1202.4) 
 
@@ -319,27 +329,32 @@ par(op)
 ```
 
 
+Model validation for the model with inetraction term looks about the same as the model without the interaction term: no serious issues.
+
+
 **Predictions**
 
-```{r}
+```{r fig.height=10, fig.width=10}
+
 newLpredBM=df_na$L.PredBM
 newTemp=df_na$Temp..C..
 
 newdata<-data.frame(newLpredBM=df_na$L.PredBM,newTemp=df_na$Temp..C..)
 
 
-ar1_opt_na<-lm(df_na$L.Fitted.a..median.of.BS.samples.~df_na$L.PredBM+df_na$Temp..C.., data=df_na)
-pred<-predict.lm(ar1_opt_na, newdata)
-plot(df_na$L.PredBM, df_na$L.Fitted.a..median.of.BS.samples.)
-points(pred, df_na$L.PredBM, col="blue")
+ar1_opt_na=lm(L.Fitted.a..median.of.BS.samples.~L.PredBM+Temp..C.., data=df_na)
+summary(ar1_opt_na)
+
+#pred<-predict.lm(ar1_opt_na, newdata)
+#plot(L.PredBM, L.Fitted.a..median.of.BS.samples., data=)
+#points(pred, df_na$L.PredBM, col="blue")
 
 
-ggplot(df_na, aes(df_na$L.PredBM,df_na$L.Fitted.a..median.of.BS.samples., colour=df_na$Temp..C..))+geom_point()+stat_smooth(method="lm", se=FALSE)
+#ggplot(df_na, aes(df_na$L.PredBM,df_na$L.Fitted.a..median.of.BS.samples., colour=df_na$Temp..C..))+geom_point()+stat_smooth(method="lm", se=FALSE)
 
-library(ggiraphExtra)
 
-#this does not work but it should
 ggPredict(ar1_opt_na, interactive = TRUE)
+
 
 ```
 
