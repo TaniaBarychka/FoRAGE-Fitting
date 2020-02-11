@@ -483,6 +483,8 @@ anova(ht1_preyOverpredTemp)
 
 drop1(ht1_preyOverpredTemp)
 
+#anova(ht1_preyPred,ht1_preyPredTemp)
+
 #prey, Temp, pred
 ht1_preyTempPred<-lm(forage_db$L.Fittted.h..day.~forage_db$L.PreyBM+forage_db$Temp..C..+forage_db$L.PredBM)
 summary(ht1_preyTempPred)
@@ -496,7 +498,7 @@ I'll also have a look at Ecto Endo grouping.
 
 **Model validation**
 
-```{r}
+```{r echo=FALSE}
 
 df_hr<-cbind(as.numeric(forage_db$Predator.mass..mg.), as.numeric(forage_db$Prey.mass..mg.), as.numeric(forage_db$L.Fitted.a..median.of.BS.samples.), as.numeric(forage_db$L.Fittted.h..day.), as.numeric(forage_db$Temp..C..))
 
@@ -513,6 +515,9 @@ table(df_no_hr$VertInvert, df_no_hr$EctoEndo)
 
 df_na_hr<-na.omit(df_no_hr)
 ```
+
+
+
 
 
 
@@ -558,6 +563,190 @@ par(op)
 Some serious problems with the fits: missed variance structure or an explanatory variable.
 
 
+Let me compare pred+prey vs pred+prey+temp:
+
+```{r echo=FALSE}
+
+hr1_na_PreyPred<-lm(LogFittedH_day~LogPreyBM+LogPredBM, data=df_na_hr)
+summary(hr1_na_PreyPred)
+
+hr1_na_PreyPredTemp<-lm(LogFittedH_day~LogPreyBM+LogPredBM+Temp_c,data=df_na_hr)
+summary(hr1_na_PreyPredTemp)
+
+
+#anova(hr1_na_PreyPredTemp, hr1_na_PreyPred)
+
+hr1_na_PreyPredEcEn<-lm(LogFittedH_day~LogPreyBM+LogPredBM+as.factor(EctoEndo),data=df_na_hr)
+summary(hr1_na_PreyPredEcEn)
+
+#anova(hr1_na_PreyPredEcEn,hr1_na_PreyPred)
+
+inHr_na<-lm(LogFittedH_day~LogPreyBM+LogPredBM+Temp_c*EctoEndo, data = df_na_hr)
+summary(inHr_na)
+
+```
+
+- Temperature is NOT significant.
+
+- Ecto and Endotherms are not significant.
+
+- Ecto/Endo*Temp interaction is not significant. 
+
+
+**Model Validation 2**
+
+```{r fig.height=10, fig.width=10,echo=FALSE}
+
+hr1_opt_2<-lm(df_na_hr$LogFittedH_day~df_na_hr$LogPreyBM+df_na_hr$LogPredBM)
+op<-par(mfrow=c(2,2))
+
+plot(hr1_opt_2)
+
+
+#win.graph();
+op<-par(mfrow=c(2,2))
+#Check for normality
+E<-rstandard(hr1_opt_2)
+
+hist(E)
+qqnorm(E)
+
+#check for independence and homogeneity: residuals versus individual explanatory variables
+plot(y=E, x=log10(df_na_hr$PreyBM), xlab="log10 Prey bodymass", ylab="Residuals")
+abline(0,0)
+
+plot(y=E, x=log10(df_na_hr$PredBM), xlab="log10 Predator bodymass", ylab="Residuals")
+abline(0,0)
+
+#Residuals against Temp
+plot(E~df_na_hr$Temp_c, xlab="Temp, C", ylab="Residuals")
+abline(0,0)
+
+plot(E~as.factor(df_na_hr$EctoEndo), ylab="Residuals")
+par(op)
+
+```
+
+Problematic plots again. 
+
+```{r}
+
+hr1_PreyPredTempInter<-lm(L.Fittted.h..day.~L.PreyBM*L.PredBM*Temp..C.., data=forage_db)
+summary(hr1_PreyPredTempInter)
+
+
+```
+
+
+Prey and Predator body mass inetraction is significant and so is three-way interaction with Temperature.
+
+Let's remove some terms.
+
+
+```{r}
+
+hr1_PreyPredTempInter2<-update(hr1_PreyPredTempInter,~.-Temp..C..)
+summary(hr1_PreyPredTempInter2)
+
+#Now lets remove the least significant interaction term: PreyBM: Temp
+hr1_PreyPredTempInter3<-update(hr1_PreyPredTempInter2,~.-L.PreyBM:Temp..C..)
+summary(hr1_PreyPredTempInter3)
+
+#All the terms are significant. Let's check the assumptions:
+
+plot(hr1_PreyPredTempInter3)
+
+```
+
+We have problems with residuals and non-normality. 
+
+I'm going to remove some problematic values: 1451, 2011, 859, 796 and 2047.
+
+
+```{r echo=FALSE}
+
+forage_db[2011,]
+
+forage_db_sub<-forage_db[-c(1449, 2009,857,794, 2045),]
+
+hr1_PreyPredTempInter4<-lm(L.Fittted.h..day. ~ L.PreyBM + L.PredBM + L.PreyBM:L.PredBM + L.PredBM:Temp..C.. + L.PreyBM:L.PredBM:Temp..C.., data=forage_db_sub)
+plot(hr1_PreyPredTempInter4)
+
+```
+
+
+I'm going to remove  aquatics (==all protozoans).
+
+```{r echo=FALSE}
+
+#I'll remove angiosperms, protozoans and Nas.
+
+forage_db_reduced<-forage_db[forage_db$Habitat!="Aquatic",]
+table(forage_db_reduced$Vert.invert)
+
+#& forage_db$Vert.invert!="Protozoan" 
+
+#all protozoans are aquatic
+
+#refit
+hr1_Inter_R<-lm(L.Fittted.h..day.~L.PreyBM+L.PredBM, data=forage_db_reduced)
+summary(hr1_Inter_R)
+op<-par(mfrow=c(2,2))
+plot(hr1_Inter_R)
+
+
+#win.graph();
+
+#Check for normality
+E<-rstandard(hr1_Inter_R)
+
+hist(E)
+qqnorm(E)
+
+```
+
+
+
+```{r echo=FALSE, eval=FALSE}
+
+#Let's try fitting predator first.
+hr1_opt_2Pred<-lm(df_na_hr$LogFittedH_day~df_na_hr$LogPredBM+df_na_hr$LogPreyBM)
+summary(hr1_opt_2Pred)
+
+op<-par(mfrow=c(2,2))
+
+plot(hr1_opt_2Pred)
+
+
+#win.graph();
+op<-par(mfrow=c(2,2))
+#Check for normality
+E<-rstandard(hr1_opt_2Pred)
+
+hist(E)
+qqnorm(E)
+
+#check for independence and homogeneity: residuals versus individual explanatory variables
+plot(y=E, x=log10(df_na_hr$PreyBM), xlab="log10 Prey bodymass", ylab="Residuals")
+abline(0,0)
+
+plot(y=E, x=log10(df_na_hr$PredBM), xlab="log10 Predator bodymass", ylab="Residuals")
+abline(0,0)
+
+#Residuals against Temp
+plot(E~df_na_hr$Temp_c, xlab="Temp, C", ylab="Residuals")
+abline(0,0)
+
+plot(E~as.factor(df_na_hr$EctoEndo), ylab="Residuals")
+par(op)
+
+#No difference, still looks bad.
+
+```
+
+
+
+
 **Residuals as function of ectotherms and endotherms:**
 
 ```{r echo=FALSE}
@@ -577,7 +766,7 @@ xyplot(E~Temp_c,groups=df_na_hr$EctoEndo, data = df_na_hr,auto.key = list(corner
 
 It's not obvious that residuals for endotherms are separate from ecotherms's residuals.
 
-Alternative models:
+A few alternative models:
 
 HT~ Prey BM+Pred BM+Ecto/Endo
 
@@ -601,9 +790,66 @@ drop1(ht2_preyPredEETemp)
 ```
 
 
-None of the alternative models look to be improving significantly upon the basic prey and predator body mass model. 
+
+
+
+None of the alternative models look to improve significantly upon the basic prey and predator body mass model. 
 
 I wonder if collinearity between the body masses are too confusing here. Check tomorrow. Other idea is to fit prey/pred with endo ecto...
+
+
+
+```{r}
+
+#lets look at the reduced dataset first
+
+pairs(df_na_hr[,c(-1,-2,-3,-6,-7)], panel = panel.smooth)
+
+df_na_hr$LogPredBM<-log10(df_na_hr$PredBM)
+df_na_hr$LogPreyBM<-log10(df_na_hr$PreyBM)
+
+
+corvif(df_na_hr[,c(8,9)])
+
+
+```
+
+There is a weakly-increasing relationship between log handling times and log prey body mass, while the relationship with log predator body mass is weakly negative. The relationship between the response and temperature looks flat with loads of noise; however prey body mass (which we would expect to be more strongly correlated with handling times) is positive.
+
+All VIF values are below 3 indicating no collinearity between these variables. However, I'm not convinced that the relationship with predator body mass is not because of collinearity.
+
+
+Crawley (p.434) suggests tackling a multiple regression problem using non-parametric smoothers in a generalized additive model. 
+
+```{r}
+library (mgcv)
+par(mfrow=c(2,2))
+
+hr3<-gam(forage_db$L.Fittted.h..day.~s(forage_db$L.PreyBM)+s(forage_db$L.PredBM)+s(forage_db$Temp..C..))
+plot(hr3)
+par(mfrow=c(1,1))
+
+anova(hr3)
+
+summary(hr3)
+
+```
+
+Both predator and prey body masses are significant while Temperature is not.
+
+
+```{r}
+
+library(tree)
+
+hr3_T<-tree(L.Fittted.h..day.~L.PreyBM+L.PredBM+Temp..C..,data=forage_db)
+plot(hr3_T)
+text(hr3_T)
+```
+
+
+Predator body mass is the predcitor variable for the primary split. Prey body mass is important at both high and low predator body mass. Temperature does not feature at al..
+
 
 
 **Handling time equivalency based on modelled intercept and slope values**
