@@ -51,6 +51,10 @@ source("C:/Users/Tania Barychka/OneDrive/Desktop/HighstatLibV10.R")
 #home desktop
 #source("C:/Users/Etherian/OneDrive/Desktop/HighstatLibV10.R")
 
+
+#small laptop
+#source("C:/Users/tatsi/OneDrive/Desktop/HighstatLibV10.R")
+
 # Create customized color palette
 library(RColorBrewer)
 mycol = c(brewer.pal(name="Dark2", n = 8), brewer.pal(name="Paired", n = 6))
@@ -70,6 +74,9 @@ forage_db<- read.csv("C:/Users/Tania Barychka/OneDrive/Documents/Madingley Postd
 
 #laptop
 #forage_db<- read.csv("C:/Users/Tania/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
+
+#small laptop
+#forage_db<- read.csv("C:/Users/tatsi/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
 
 forage_db<-forage_db[-c(2084:2682),]
 
@@ -568,6 +575,72 @@ par(op)
 Some serious problems with the fits: missed variance structure or an explanatory variable.
 
 
+**Preditor + Prey model**
+
+
+```{r}
+
+df<-cbind(as.numeric(forage_db$L.PredBM), as.numeric(forage_db$L.PreyBM), as.numeric(forage_db$L.Fitted.a..median.of.BS.samples.), as.numeric(forage_db$L.Fittted.h..day.), as.numeric(forage_db$Temp..C..))
+
+#colnames(df)<-c("LogPredBM", "LogPreyBM", "LogFittedAR", "LogFittedH_day", "Temp_c")
+colnames(df)<-c("L.PredBM", "L.PreyBM", "L.Fitted.a..median.of.BS.samples.", "L.Fittted.h..day.", "Temp..C..")
+
+
+df<-as.data.frame(df)
+
+df$VertInvert<-forage_db$Vert.invert
+df$EctoEndo<-forage_db$EctoEndo
+
+
+df_no<-df[df$VertInvert!="" & df$VertInvert!="Angiosperm",]
+table(df_no$VertInvert, df_no$EctoEndo)
+
+df_na<-na.omit(df_no)
+
+hr1_PrPrey<-lm(df_na$L.Fittted.h..day.~df_na$L.PreyBM+df_na$L.PredBM)
+summary(hr1_PrPrey)
+step(hr1_PrPrey)
+
+
+##VALIDATION
+plot(hr1_PrPrey)
+
+
+#win.graph();
+op<-par(mfrow=c(2,2))
+#Check for normality
+E<-rstandard(hr1_PrPrey)
+
+hist(E)
+qqnorm(E)
+
+#check for independence and homogeneity: residuals versus individual explanatory variables
+plot(y=E, x=df_na$L.PreyBM, xlab="log10 Prey bodymass", ylab="Residuals")
+abline(0,0)
+
+#check for independence and homogeneity: residuals versus individual explanatory variables
+plot(y=E, x=df_na$L.PredBM, xlab="log10 Predator bodymass", ylab="Residuals")
+abline(0,0)
+
+#Residuals against Temp
+plot(E~df_na$Temp..C., xlab="Temp, C", ylab="Residuals")
+abline(0,0)
+
+#Residuals against Prey Bodymass
+plot(E~log10(df_na_hr$PreyBM), xlab="Prey bodymass", ylab="Residuals")
+abline(0,0)
+
+par(op)
+
+
+```
+
+
+
+
+
+
+
 Let me compare pred+prey vs pred+prey+temp:
 
 ```{r echo=FALSE}
@@ -860,7 +933,8 @@ Predator body mass is the predcitor variable for the primary split. Prey body ma
 
 
 
-**Handling time equivalency based on modelled intercept and slope values**
+Handling time equivalency based on modelled intercept and slope values
+---
 
 Run tests assuming equivalency.
 
@@ -894,7 +968,7 @@ sd(LogPredBM)
 mean(LogPredBM)
 
 #generate a log-normal distribution
-L.predBM_sim<-rnorm(100000, mean=2.251, sd=5.713)
+L.predBM_sim<-rnorm(100000, mean=0.9776378, sd=2.481012)
 hist(L.predBM_sim)
 predBM_sim<-10^L.predBM_sim
 hist(predBM_sim)
@@ -906,7 +980,7 @@ sd(LogPreyBM)
 mean(LogPreyBM)
 
 #generate a (log) normal distibution
-L.preyBM_sim<-rnorm(100000, mean=-2.5298, sd=5.974)
+L.preyBM_sim<-rnorm(100000, mean=-1.098699, sd=2.594578)
 hist(L.preyBM_sim)
 preyBM_sim<-10^L.preyBM_sim
 hist(preyBM_sim)
@@ -932,6 +1006,23 @@ Arrhenius Temperature Dependence
 I will next attempt a fit with temperature converted to Arrhenius temperature. This will involve converting temperature in Celsius to temp in Kelvin and adding Boltzmann constant *k* (=8.617x10-5 eVK]. This should allow us to estimate the activation energy *Eh* and *Ea* describing the (exponential) increase in the metabolism with temperature.
 
 
+
+
+Let's have a qucik look at the relationships again.
+
+```{r echo=FALSE,fig.width=10, fig.height=10}
+
+#I'll convert body masses and rates to NATURAL locarithms.
+
+#reduce data set to the variables we're interested in. 
+forage_db$L.PredBM<-log(forage_db$Predator.mass..mg.)
+forage_db$L.PreyBM<-log(forage_db$Prey.mass..mg.)
+forage_db$L.Fitted.a..median.of.BS.samples.<-log(forage_db$Fitted.a..median.of.BS.samples.)
+forage_db$L.Fittted.h..day.<-log(forage_db$Fittted.h..day.)
+
+```
+
+
 ```{r echo=FALSE}
 
 
@@ -947,23 +1038,11 @@ forage_db$temp_K<-forage_db$Temp..C..+273.15
 forage_db$temp_A<-(forage_db$temp_K-To)/(k*forage_db$temp_K*To)
 
 
-```
 
-Let's have a qucik look at the relationships again.
-
-```{r echo=FALSE,fig.width=10, fig.height=10}
-
-#I'll convert body masses and rates to NATURAL locarithms.
-
-#reduce data set to the variables we're interested in. 
-forage_db$L.PredBM<-log(forage_db$Predator.mass..mg.)
-forage_db$L.PreyBM<-log(forage_db$Prey.mass..mg.)
-forage_db$L.Fitted.a..median.of.BS.samples.<-log(forage_db$Fitted.a..median.of.BS.samples.)
-forage_db$L.Fittted.h..day.<-log(forage_db$Fittted.h..day.)
 
 #plot
 
-pairs(forage_db[,c(49,50,52, 48, 47)], panel=panel.smooth)
+pairs(forage_db[,c(50,51,53, 49, 48)], panel=panel.smooth)
 
 ```
 
@@ -978,6 +1057,13 @@ df<-cbind(as.numeric(forage_db$L.PredBM), as.numeric(forage_db$L.PreyBM), as.num
 #colnames(df)<-c("LogPredBM", "LogPreyBM", "LogFittedAR", "LogFittedH_day", "Temp_c")
 colnames(df)<-c("L.PredBM", "L.PreyBM", "L.Fitted.a..median.of.BS.samples.", "L.Fittted.h..day.", "temp_A")
 
+#add ecto and endotherms
+forage_db$EctoEndo<-ifelse(forage_db$Major.grouping.1=="Bird" | forage_db$Major.grouping.1=="Mammal", "Endo", "Ecto" )
+
+#I'll remove angiosperms, protozoans and Nas.
+
+forage_db<-forage_db[forage_db$Vert.invert!="" & forage_db$Vert.invert!="Angiosperm" ,]
+table(forage_db$Vert.invert)
 
 df<-as.data.frame(df)
 
@@ -1074,11 +1160,13 @@ ggPredict(ar3_opt, interactive = TRUE)
 ```
 
 ```{r}
-forage_inf<-subset(forage_db, forage_db[,52]!="-Inf")
 
-ar3_opt_full<-lm(forage_inf$L.Fitted.a..median.of.BS.samples.~forage_inf$L.PredBM+forage_inf$temp_A)
-summary(ar3_opt_full)
+df_inf<-subset(forage_db, forage_db[,52]!="-Inf")
 
+ar3_opt_inf<-lm(L.Fitted.a..median.of.BS.samples.~L.PredBM+temp_A, data=df_inf)
+
+
+summary(ar3_opt_inf)
 
 ```
 
