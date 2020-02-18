@@ -109,6 +109,7 @@ table(df_no$VertInvert, df_no$EctoEndo)
 ```
 
 
+
 A. Attack rate
 --
 
@@ -514,6 +515,10 @@ df_no_hr<-df_hr[df_hr$VertInvert!="" & df_hr$VertInvert!="Angiosperm",]
 table(df_no_hr$VertInvert, df_no_hr$EctoEndo)
 
 df_na_hr<-na.omit(df_no_hr)
+
+df_na_hr$LogPredBM<-log10(df_na_hr$PredBM)
+df_na_hr$LogPreyBM<-log10(df_na_hr$PreyBM)
+
 ```
 
 
@@ -567,21 +572,23 @@ Let me compare pred+prey vs pred+prey+temp:
 
 ```{r echo=FALSE}
 
-hr1_na_PreyPred<-lm(LogFittedH_day~LogPreyBM+LogPredBM, data=df_na_hr)
+
+
+hr1_na_PreyPred<-lm(LogFittedH_day~df_na_hr$LogPreyBM+df_na_hr$LogPredBM, data=df_na_hr)
 summary(hr1_na_PreyPred)
 
-hr1_na_PreyPredTemp<-lm(LogFittedH_day~LogPreyBM+LogPredBM+Temp_c,data=df_na_hr)
+hr1_na_PreyPredTemp<-lm(LogFittedH_day~df_na_hr$LogPreyBM+df_na_hr$LogPredBM+df_na_hr$Temp_c,data=df_na_hr)
 summary(hr1_na_PreyPredTemp)
 
 
-#anova(hr1_na_PreyPredTemp, hr1_na_PreyPred)
+anova(hr1_na_PreyPredTemp, hr1_na_PreyPred)
 
-hr1_na_PreyPredEcEn<-lm(LogFittedH_day~LogPreyBM+LogPredBM+as.factor(EctoEndo),data=df_na_hr)
+hr1_na_PreyPredEcEn<-lm(LogFittedH_day~df_na_hr$LogPreyBM+df_na_hr$LogPredBM+as.factor(df_na_hr$EctoEndo),data=df_na_hr)
 summary(hr1_na_PreyPredEcEn)
 
-#anova(hr1_na_PreyPredEcEn,hr1_na_PreyPred)
+anova(hr1_na_PreyPredEcEn,hr1_na_PreyPred)
 
-inHr_na<-lm(LogFittedH_day~LogPreyBM+LogPredBM+Temp_c*EctoEndo, data = df_na_hr)
+inHr_na<-lm(LogFittedH_day~df_na_hr$LogPreyBM+df_na_hr$LogPredBM+df_na_hr$Temp_c*df_na_hr$EctoEndo, data = df_na_hr)
 summary(inHr_na)
 
 ```
@@ -653,7 +660,7 @@ hr1_PreyPredTempInter3<-update(hr1_PreyPredTempInter2,~.-L.PreyBM:Temp..C..)
 summary(hr1_PreyPredTempInter3)
 
 #All the terms are significant. Let's check the assumptions:
-
+par(mfrow=c(2,2))
 plot(hr1_PreyPredTempInter3)
 
 ```
@@ -665,11 +672,12 @@ I'm going to remove some problematic values: 1451, 2011, 859, 796 and 2047.
 
 ```{r echo=FALSE}
 
-forage_db[2011,]
+#forage_db[2011,]
 
 forage_db_sub<-forage_db[-c(1449, 2009,857,794, 2045),]
 
 hr1_PreyPredTempInter4<-lm(L.Fittted.h..day. ~ L.PreyBM + L.PredBM + L.PreyBM:L.PredBM + L.PredBM:Temp..C.. + L.PreyBM:L.PredBM:Temp..C.., data=forage_db_sub)
+par(mfrow=c(2,2))
 plot(hr1_PreyPredTempInter4)
 
 ```
@@ -873,3 +881,207 @@ abline(lm(forage_db$L.PredictedPreyBM~forage_db$L.PreyBM),col="red")
 
 It looks like it's predicting ok around 0 but seriously underpredicting at low values and over predicting at high values (if I'm reading this correctly). So I would say not models are not equivalent as they stand now.
 
+I'm going to generate some values for prey and predator body masses. Plug in slopes from the model and plot predictions against one another.
+
+
+```{r}
+hist(forage_db$L.PredBM)
+summary(forage_db$L.PredBM)
+
+LogPredBM<-na.omit(forage_db$L.PredBM)
+
+sd(LogPredBM)
+mean(LogPredBM)
+
+#generate a log-normal distribution
+L.predBM_sim<-rnorm(100000, mean=2.251, sd=5.713)
+hist(L.predBM_sim)
+predBM_sim<-10^L.predBM_sim
+hist(predBM_sim)
+
+#Prey
+LogPreyBM<-na.omit(forage_db$L.PreyBM)
+
+sd(LogPreyBM)
+mean(LogPreyBM)
+
+#generate a (log) normal distibution
+L.preyBM_sim<-rnorm(100000, mean=-2.5298, sd=5.974)
+hist(L.preyBM_sim)
+preyBM_sim<-10^L.preyBM_sim
+hist(preyBM_sim)
+
+#prediction for model 1: M1
+predM1<-0.632639*L.preyBM_sim-0.6179177*L.predBM_sim
+
+
+#predcitions for model 2: M2
+predM2<-0.627036*log10(preyBM_sim/predBM_sim)
+
+plot(predM1,predM2)
+
+
+```
+
+
+18/02/2020
+
+Arrhenius Temperature Dependence
+---
+
+I will next attempt a fit with temperature converted to Arrhenius temperature. This will involve converting temperature in Celsius to temp in Kelvin and adding Boltzmann constant *k* (=8.617x10-5 eVK]. This should allow us to estimate the activation energy *Eh* and *Ea* describing the (exponential) increase in the metabolism with temperature.
+
+
+```{r echo=FALSE}
+
+
+#deduct To = 293.15K
+
+To<-293.15
+
+#devide by *kTTo
+k<-0.00008617
+
+#convert
+forage_db$temp_K<-forage_db$Temp..C..+273.15
+forage_db$temp_A<-(forage_db$temp_K-To)/(k*forage_db$temp_K*To)
+
+
+```
+
+Let's have a qucik look at the relationships again.
+
+```{r echo=FALSE,fig.width=10, fig.height=10}
+
+#I'll convert body masses and rates to NATURAL locarithms.
+
+#reduce data set to the variables we're interested in. 
+forage_db$L.PredBM<-log(forage_db$Predator.mass..mg.)
+forage_db$L.PreyBM<-log(forage_db$Prey.mass..mg.)
+forage_db$L.Fitted.a..median.of.BS.samples.<-log(forage_db$Fitted.a..median.of.BS.samples.)
+forage_db$L.Fittted.h..day.<-log(forage_db$Fittted.h..day.)
+
+#plot
+
+pairs(forage_db[,c(49,50,52, 48, 47)], panel=panel.smooth)
+
+```
+
+**Arrhenius - Attack Rates**
+
+
+```{r echo=FALSE}
+
+
+df<-cbind(as.numeric(forage_db$L.PredBM), as.numeric(forage_db$L.PreyBM), as.numeric(forage_db$L.Fitted.a..median.of.BS.samples.), as.numeric(forage_db$L.Fittted.h..day.), as.numeric(forage_db$temp_A))
+
+#colnames(df)<-c("LogPredBM", "LogPreyBM", "LogFittedAR", "LogFittedH_day", "Temp_c")
+colnames(df)<-c("L.PredBM", "L.PreyBM", "L.Fitted.a..median.of.BS.samples.", "L.Fittted.h..day.", "temp_A")
+
+
+df<-as.data.frame(df)
+
+df$VertInvert<-forage_db$Vert.invert
+df$EctoEndo<-forage_db$EctoEndo
+
+
+df_no<-df[df$VertInvert!="" & df$VertInvert!="Angiosperm",]
+table(df_no$VertInvert, df_no$EctoEndo)
+
+df_na<-na.omit(df_no)
+df_na<-subset(df_na, df_na[,5]!="-Inf")
+
+```
+
+```{r}
+
+ar3<-lm(L.Fitted.a..median.of.BS.samples.~L.PredBM+L.PreyBM+temp_A, data=df_na)
+summary(df_na)
+
+summary(ar3)
+anova(ar3)
+
+step(ar3)
+drop1(ar3)
+
+```
+
+
+
+```{r echo=FALSE,fig.height=10, fig.width=10}
+
+op<-par(mfrow=c(2,2))
+
+#win.graph();
+op<-par(mfrow=c(2,2))
+plot(ar3)
+#Check for normality
+E<-rstandard(ar3)
+
+hist(E)
+qqnorm(E)
+
+#check for independence and homogeneity: residuals versus individual explanatory variables
+plot(y=E, x=df_na$L.PredBM, xlab="Ln Predator bodymass", ylab="Residuals")
+abline(0,0)
+
+#Residuals against Temp
+plot(E~df_na$temp_A, xlab="Temp, Arrhenius", ylab="Residuals")
+abline(0,0)
+
+#Residuals against Prey Bodymass
+plot(E~df_na$L.PreyBM, xlab="Ln Prey bodymass", ylab="Residuals")
+abline(0,0)
+par(op)
+
+```
+
+I'm going to drop prey body mass and refit with predator and temp.
+
+
+```{r echo=FALSE,fig.height=10, fig.width=10}
+
+ar3_opt<-lm(L.Fitted.a..median.of.BS.samples.~L.PredBM+temp_A, data=df_na)
+summary(ar3_opt)
+
+op<-par(mfrow=c(2,2))
+
+#win.graph();
+op<-par(mfrow=c(2,2))
+plot(ar3_opt)
+#Check for normality
+E<-rstandard(ar3_opt)
+
+hist(E)
+qqnorm(E)
+
+#check for independence and homogeneity: residuals versus individual explanatory variables
+plot(y=E, x=df_na$L.PredBM, xlab="Ln Predator bodymass", ylab="Residuals")
+abline(0,0)
+
+#Residuals against Temp
+plot(E~df_na$temp_A, xlab="Temp, Arrhenius", ylab="Residuals")
+abline(0,0)
+
+#Residuals against Prey Bodymass
+plot(E~df_na$L.PreyBM, xlab="Ln Prey bodymass", ylab="Residuals")
+abline(0,0)
+par(op)
+
+
+ggPredict(ar3_opt, interactive = TRUE)
+
+```
+
+```{r}
+forage_inf<-subset(forage_db, forage_db[,52]!="-Inf")
+
+ar3_opt_full<-lm(forage_inf$L.Fitted.a..median.of.BS.samples.~forage_inf$L.PredBM+forage_inf$temp_A)
+summary(ar3_opt_full)
+
+
+```
+
+**Ln(Attack Rate)=0.85X+(-7.01+0.90 per Arrhenius term), where X=Ln Predator Body mass**
+
+So, the activcation energy of attack rate for the full model is *Ea* = 0.90.
