@@ -46,10 +46,10 @@ require(ggiraphExtra)
 
 
 #work desktop
-source("C:/Users/Tania Barychka/OneDrive/Desktop/HighstatLibV10.R")
+#source("C:/Users/Tania Barychka/OneDrive/Desktop/HighstatLibV10.R")
 
 #home desktop
-#source("C:/Users/Etherian/OneDrive/Desktop/HighstatLibV10.R")
+source("C:/Users/Etherian/OneDrive/Desktop/HighstatLibV10.R")
 
 
 #small laptop
@@ -64,13 +64,13 @@ mycol = c(brewer.pal(name="Dark2", n = 8), brewer.pal(name="Paired", n = 6))
 
 ```{r echo=FALSE}
 #work
-forage_db<- read.csv("C:/Users/Tania Barychka/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
+#forage_db<- read.csv("C:/Users/Tania Barychka/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
 
 #summary(forage_db)
 
 
 #home
-#forage_db<- read.csv("C:/Users/Etherian/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
+forage_db<- read.csv("C:/Users/Etherian/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
 
 #laptop
 #forage_db<- read.csv("C:/Users/Tania/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
@@ -79,6 +79,10 @@ forage_db<- read.csv("C:/Users/Tania Barychka/OneDrive/Documents/Madingley Postd
 #forage_db<- read.csv("C:/Users/tatsi/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
 
 forage_db<-forage_db[-c(2084:2682),]
+```
+
+
+```{r echo=FALSE}
 
 #reduce data set to the variables we're interested in. 
 forage_db$L.PredBM<-log10(forage_db$Predator.mass..mg.)
@@ -1020,6 +1024,18 @@ forage_db$L.PreyBM<-log(forage_db$Prey.mass..mg.)
 forage_db$L.Fitted.a..median.of.BS.samples.<-log(forage_db$Fitted.a..median.of.BS.samples.)
 forage_db$L.Fittted.h..day.<-log(forage_db$Fittted.h..day.)
 
+
+#add ecto and endotherms
+forage_db$EctoEndo<-ifelse(forage_db$Major.grouping.1=="Bird" | forage_db$Major.grouping.1=="Mammal", "Endo", "Ecto" )
+
+#I'll remove angiosperms, protozoans and Nas.
+
+
+forage_db<-forage_db[forage_db$Vert.invert!="" & forage_db$Vert.invert!="Angiosperm" ,]
+table(forage_db$Vert.invert)
+#& forage_db$Vert.invert!="Protozoan"
+
+
 ```
 
 
@@ -1042,7 +1058,7 @@ forage_db$temp_A<-(forage_db$temp_K-To)/(k*forage_db$temp_K*To)
 
 #plot
 
-pairs(forage_db[,c(50,51,53, 49, 48)], panel=panel.smooth)
+#pairs(forage_db[,c(50,51,53, 49, 48)], panel=panel.smooth)
 
 ```
 
@@ -1057,6 +1073,10 @@ df<-cbind(as.numeric(forage_db$L.PredBM), as.numeric(forage_db$L.PreyBM), as.num
 #colnames(df)<-c("LogPredBM", "LogPreyBM", "LogFittedAR", "LogFittedH_day", "Temp_c")
 colnames(df)<-c("L.PredBM", "L.PreyBM", "L.Fitted.a..median.of.BS.samples.", "L.Fittted.h..day.", "temp_A")
 
+df<-as.data.frame(df)
+
+
+df$Habitat<-forage_db$Habitat
 #add ecto and endotherms
 forage_db$EctoEndo<-ifelse(forage_db$Major.grouping.1=="Bird" | forage_db$Major.grouping.1=="Mammal", "Endo", "Ecto" )
 
@@ -1173,3 +1193,242 @@ summary(ar3_opt_inf)
 **Ln(Attack Rate)=0.85X+(-7.01+0.90 per Arrhenius term), where X=Ln Predator Body mass**
 
 So, the activcation energy of attack rate for the full model is *Ea* = 0.90.
+
+
+06/04/2020
+
+With Habitats
+---
+
+Process data line 1005.
+
+```{r echo=FALSE,fig.width=10, fig.height=10}
+
+#I'm goint to remove mixed
+df<-df[df$Habitat!="Mixed",]
+
+table(df$Habitat)
+head(df)
+
+
+plot(df$L.Fitted.a..median.of.BS.samples.~df$Habitat)
+
+
+summary(aov(df$L.Fitted.a..median.of.BS.samples.~df$Habitat))
+
+```
+
+
+
+```{r echo=FALSE}
+#let's check the assumptions of teh model
+op<-par(mfrow=c(2,2))
+plot(aov(df$L.Fitted.a..median.of.BS.samples.~df$Habitat))
+
+##effect sizes
+model<-aov(df$L.Fitted.a..median.of.BS.samples.~df$Habitat)
+model.tables(model, se=T)
+
+summary.lm(model)
+
+```
+
+
+
+Unlike handling times , attack rates do not differ significantly between habitats.
+
+Most validation plots are  ok except for normality that is highly skewed on both ends.
+
+Let's have a look at some EDA plots.
+
+```{r echo =FALSE}
+par(mfrow=c(1,1))
+attach(df)
+#Let's try the simplest model first: Prey*Habitat
+plot(L.PredBM,L.Fitted.a..median.of.BS.samples., pch=16, col=c("blue", "red")[as.numeric(Habitat)])
+
+
+#levels(df_sSet$Habitat)
+
+abline(lm(L.Fitted.a..median.of.BS.samples.[Habitat=="Aquatic"]~L.PredBM[Habitat=="Aquatic"]), col="blue")
+abline(lm(L.Fitted.a..median.of.BS.samples.[Habitat=="Terrestrial"]~L.PredBM[Habitat=="Terrestrial"]), col="red")
+
+ggplot(df,aes(L.PredBM,L.Fitted.a..median.of.BS.samples., col=Habitat))+geom_point()
+```
+
+
+Lines intersect though theris a slight difference in slope and intercept (terrestrial slightly more shallow and higher intercept).
+
+I'll try the maximal model.
+
+```{r echo=FALSE}
+
+m1<-lm(L.Fitted.a..median.of.BS.samples.~L.PredBM*L.PreyBM*temp_A*Habitat, data=df)
+summary(m1)
+
+m2<-update(m1,~ . - L.PredBM:L.PreyBM:Habitat)
+summary(m2)
+
+m3<-update(m2,~. -L.PreyBM:Habitat)
+summary(m3)
+
+m4<-update(m3,~. -L.PredBM:temp_A)
+summary(m4)
+
+m5<-update(m4,~.-L.PreyBM:temp_A)
+summary(m5)
+
+m6<-update(m5,~.-L.PreyBM)
+summary(m6)
+
+step(m1)
+
+drop1(m1)
+
+op<-par(mfrow=c(2,2))
+
+plot(m6)
+
+
+```
+
+
+This model includes 3 and 4-way interactions adn is too complex to be practical so I'll just re-fit for the two habitats. THe fits are not the greatest either.
+
+
+1. Terrestrial:
+---
+
+```{r echo=FALSE,fig.width=10, fig.height=10}
+
+
+detach(df)
+
+df_Terr<-df[df$Habitat=="Terrestrial",]
+
+m1_terr<-lm(df_Terr$L.Fitted.a..median.of.BS.samples.~df_Terr$L.PredBM*df_Terr$L.PreyBM*df_Terr$temp_A)
+summary(m1_terr)
+
+#delete interaction
+m2_terr<-update(m1_terr,~.-df_Terr$L.PredBM:df_Terr$L.PreyBM)
+summary(m2_terr)
+
+m3_terr<-update(m2_terr, ~.-df_Terr$L.PreyBM)
+summary(m3_terr)
+
+anova(m3_terr)
+drop1(m3_terr)
+
+op<-par(mfrow=c(2,2))
+plot(m3_terr)
+
+```
+
+The model's fit is truly terrible.
+
+Let's try a simpler model.
+
+```{r echo=FALSE,fig.width=10, fig.height=10}
+
+m4_terr<-lm(df_Terr$L.Fitted.a..median.of.BS.samples.~df_Terr$L.PredBM+df_Terr$L.PreyBM+df_Terr$temp_A)
+
+summary(m4_terr)
+drop1(m4_terr)
+
+op<-par(mfrow=c(2,2))
+plot(m4_terr)
+
+#try to remove predator body mass
+m5_terr<-update(m4_terr,~. -df_Terr$L.PreyBM)
+summary(m5_terr)
+plot(m5_terr)
+
+```
+
+Removing prey BM increases BM from 1368  to 1373. Optimal for terrestrial, Prey bodymass is significant at 0.01. The optimal is **L.Fitted.a..median.of.BS.samples. ~ L.PredBM +L.PreyBM +temp_A**. However, the model is rearly poor with a lot of trends and skew.
+
+Without prey body mass the model is : **Th=0.75x+(-6.65+0.74xTempA)**.
+
+
+```{r}
+df_Terr_na<-df_Terr[,c(1,3,5)]
+df_Terr_na<-na.omit(df_Terr_na)
+#summary(df_sSet_Terr_na)
+
+m5_terr_na<-lm(L.Fitted.a..median.of.BS.samples.~L.PredBM+temp_A, data=df_Terr_na)
+
+ggPredict(m5_terr_na, interactive = TRUE)
+
+
+```
+
+
+Aquatic:
+---
+
+
+```{r echo=FALSE,fig.width=10, fig.height=10}
+
+
+df_Aq<-df[df$Habitat=="Aquatic",]
+
+m1_aq<-lm(df_Aq$L.Fitted.a..median.of.BS.samples.~df_Aq$L.PredBM*df_Aq$L.PreyBM*df_Aq$temp_A)
+summary(m1_aq)
+
+#delete interaction
+m2_aq<-update(m1_aq,~.-df_Aq$L.PredBM:df_Aq$temp_A)
+summary(m2_aq)
+
+m3_aq<-update(m2_aq, ~.-df_Aq$L.PreyBM:df_Aq$temp_A)
+summary(m3_aq)
+
+m4_aq<-update(m3_aq, ~. -df_Aq$L.PreyBM)
+summary(m4_aq)
+
+
+anova(m4_aq)
+drop1(m4_aq)
+
+op<-par(mfrow=c(2,2))
+plot(m4_aq)
+
+
+m5_aq<-update(m4_aq, ~. -df_Aq$L.PredBM:df_Aq$L.PreyBM)
+summary(m5_aq)
+
+anova(m4_aq,m5_aq)
+plot(m5_aq)
+```
+
+Aquatic models are much better behaved than terrestrial. THe model with Prey:Pred interaction is better than without ar 0.01.  Both models aslo have a three-way interaction.
+
+Let's try a simpler model.
+
+```{r echo=FALSE,fig.width=10, fig.height=10}
+
+m6_aq<-lm(df_Aq$L.Fitted.a..median.of.BS.samples.~df_Aq$L.PredBM+df_Aq$L.PreyBM+df_Aq$temp_A)
+
+summary(m6_aq)
+drop1(m6_aq)
+
+m7_aq<-update(m6_aq,~.-df_Aq$L.PreyBM)
+summary(m7_aq)
+
+op<-par(mfrow=c(2,2))
+plot(m7_aq)
+
+```
+
+A relatively well-behaved model (aquatic): **Th=0.88x+(-7.06+1.08xTemp_A)**.
+
+```{r}
+df_Aq_na<-df_Aq[,c(1,3,5)]
+df_Aq_na<-na.omit(df_Aq_na)
+#summary(df_sSet_Terr_na)
+
+m7_aq_na<-lm(L.Fitted.a..median.of.BS.samples.~L.PredBM+temp_A, data=df_Aq_na)
+
+ggPredict(m7_aq_na, interactive = TRUE)
+
+
+```
