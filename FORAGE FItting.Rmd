@@ -69,6 +69,8 @@ mycol = c(brewer.pal(name="Dark2", n = 8), brewer.pal(name="Paired", n = 6))
 #summary(forage_db)
 
 
+
+
 #home
 forage_db<- read.csv("C:/Users/Etherian/OneDrive/Documents/Madingley Postdoc/resource_map_doi_10_5063_F17H1GTQ/data/FoRAGE_db_12_19_18_data_set.csv")
 
@@ -83,6 +85,8 @@ forage_db<-forage_db[-c(2084:2682),]
 
 
 ```{r echo=FALSE}
+
+#####NOTICE: THIS IS IN MG, NEED TO CONVERT TO G FOR COMPARISON WITH MADINGKEY AND PARAMETERISATION##
 
 #reduce data set to the variables we're interested in. 
 forage_db$L.PredBM<-log10(forage_db$Predator.mass..mg.)
@@ -1016,11 +1020,15 @@ Let's have a qucik look at the relationships again.
 
 ```{r echo=FALSE,fig.width=10, fig.height=10}
 
+#MG TO GRAM
+forage_db$Predator.mass.g.<-forage_db$Predator.mass..mg./1000
+forage_db$Prey.mass.g.<-forage_db$Prey.mass..mg./1000
+
 #I'll convert body masses and rates to NATURAL locarithms.
 
 #reduce data set to the variables we're interested in. 
-forage_db$L.PredBM<-log(forage_db$Predator.mass..mg.)
-forage_db$L.PreyBM<-log(forage_db$Prey.mass..mg.)
+forage_db$L.PredBM<-log(forage_db$Predator.mass.g.)
+forage_db$L.PreyBM<-log(forage_db$Prey.mass.g.)
 forage_db$L.Fitted.a..median.of.BS.samples.<-log(forage_db$Fitted.a..median.of.BS.samples.)
 forage_db$L.Fittted.h..day.<-log(forage_db$Fittted.h..day.)
 
@@ -1190,9 +1198,11 @@ summary(ar3_opt_inf)
 
 ```
 
-**Ln(Attack Rate)=0.85X+(-7.01+0.90 per Arrhenius term), where X=Ln Predator Body mass**
+**Ln(Attack Rate)=0.85X+(-7.01+0.90 per Arrhenius term), where X=Ln Predator Body mass** in MG.
 
-So, the activcation energy of attack rate for the full model is *Ea* = 0.90.
+**Ln(Attach Rate)= 0.89x-0.85+1.06 Temp_A), where x=Ln Predator body mass ** in GRAM.
+
+So, the activcation energy of attack rate for the full model is *Ea* = 1.06.
 
 
 06/04/2020
@@ -1266,19 +1276,19 @@ I'll try the maximal model.
 m1<-lm(L.Fitted.a..median.of.BS.samples.~L.PredBM*L.PreyBM*temp_A*Habitat, data=df)
 summary(m1)
 
-m2<-update(m1,~ . - L.PredBM:L.PreyBM:Habitat)
+m2<-update(m1,~ . -L.PreyBM:Habitat)
 summary(m2)
 
-m3<-update(m2,~. -L.PreyBM:Habitat)
+m3<-update(m2,~. -temp_A:Habitat)
 summary(m3)
 
-m4<-update(m3,~. -L.PredBM:temp_A)
+m4<-update(m3,~. -L.PreyBM:temp_A:Habitat)
 summary(m4)
 
-m5<-update(m4,~.-L.PreyBM:temp_A)
+m5<-update(m4,~.-L.PredBM:temp_A)
 summary(m5)
 
-m6<-update(m5,~.-L.PreyBM)
+m6<-update(m5,~.-L.PredBM:L.PreyBM:Habitat)
 summary(m6)
 
 step(m1)
@@ -1313,41 +1323,51 @@ summary(m1_terr)
 m2_terr<-update(m1_terr,~.-df_Terr$L.PredBM:df_Terr$L.PreyBM)
 summary(m2_terr)
 
-m3_terr<-update(m2_terr, ~.-df_Terr$L.PreyBM)
+m3_terr<-update(m2_terr, ~.-df_Terr$L.PreyBM:df_Terr$temp_A)
 summary(m3_terr)
 
-anova(m3_terr)
-drop1(m3_terr)
-
-op<-par(mfrow=c(2,2))
-plot(m3_terr)
-
-```
-
-The model's fit is truly terrible.
-
-Let's try a simpler model.
-
-```{r echo=FALSE,fig.width=10, fig.height=10}
-
-m4_terr<-lm(df_Terr$L.Fitted.a..median.of.BS.samples.~df_Terr$L.PredBM+df_Terr$L.PreyBM+df_Terr$temp_A)
-
+m4_terr<-update(m3_terr,~.-df_Terr$L.PreyBM)
 summary(m4_terr)
+
+anova(m4_terr)
 drop1(m4_terr)
 
 op<-par(mfrow=c(2,2))
 plot(m4_terr)
 
-#try to remove predator body mass
-m5_terr<-update(m4_terr,~. -df_Terr$L.PreyBM)
+```
+
+The model's fit is truly terrible. The model includes Pred:Temp and a 3-way Pred:Prey:Temp interaction.
+
+Let's try a simpler model.
+
+```{r echo=FALSE,fig.width=10, fig.height=10}
+
+m5_terr<-lm(df_Terr$L.Fitted.a..median.of.BS.samples.~df_Terr$L.PredBM+df_Terr$L.PreyBM+df_Terr$temp_A)
+
 summary(m5_terr)
+drop1(m5_terr)
+
+op<-par(mfrow=c(2,2))
 plot(m5_terr)
+
+#try to remove prey body mass
+m6_terr<-update(m5_terr,~. -df_Terr$L.PreyBM)
+summary(m6_terr)
+plot(m6_terr)
+
+#anova(m5_terr,m6_terr)
 
 ```
 
-Removing prey BM increases BM from 1368  to 1373. Optimal for terrestrial, Prey bodymass is significant at 0.01. The optimal is **L.Fitted.a..median.of.BS.samples. ~ L.PredBM +L.PreyBM +temp_A**. However, the model is rearly poor with a lot of trends and skew.
+Removing prey BM increases BM from 1368  to 1373. Optimal for terrestrial, Prey bodymass is significant at 0.001 (p=0.007). Intercept is significant at 0.001(p=0.005).
 
-Without prey body mass the model is : **Th=0.75x+(-6.65+0.74xTempA)**.
+The optimal is **L.Fitted.a..median.of.BS.samples. ~ L.PredBM +L.PreyBM +temp_A**. 
+
+However, the model is rearly poor with a lot of trends and skew.
+
+
+Without prey body mass the model for terrestrial is : **Th=0.75x+(-1.48+0.58xTemp_A)**.
 
 
 ```{r}
@@ -1355,9 +1375,9 @@ df_Terr_na<-df_Terr[,c(1,3,5)]
 df_Terr_na<-na.omit(df_Terr_na)
 #summary(df_sSet_Terr_na)
 
-m5_terr_na<-lm(L.Fitted.a..median.of.BS.samples.~L.PredBM+temp_A, data=df_Terr_na)
+m6_terr_na<-lm(L.Fitted.a..median.of.BS.samples.~L.PredBM+temp_A, data=df_Terr_na)
 
-ggPredict(m5_terr_na, interactive = TRUE)
+ggPredict(m6_terr_na, interactive = TRUE)
 
 
 ```
@@ -1379,47 +1399,53 @@ summary(m1_aq)
 m2_aq<-update(m1_aq,~.-df_Aq$L.PredBM:df_Aq$temp_A)
 summary(m2_aq)
 
-m3_aq<-update(m2_aq, ~.-df_Aq$L.PreyBM:df_Aq$temp_A)
+m3_aq<-update(m2_aq, ~.-df_Aq$L.PreyBM)
 summary(m3_aq)
 
-m4_aq<-update(m3_aq, ~. -df_Aq$L.PreyBM)
-summary(m4_aq)
+#m4_aq<-update(m3_aq, ~. -df_Aq$L.PreyBM)
+#summary(m4_aq)
 
 
-anova(m4_aq)
-drop1(m4_aq)
+anova(m3_aq)
+drop1(m3_aq)
 
 op<-par(mfrow=c(2,2))
-plot(m4_aq)
+plot(m3_aq)
 
 
-m5_aq<-update(m4_aq, ~. -df_Aq$L.PredBM:df_Aq$L.PreyBM)
+m5_aq<-update(m3_aq, ~. -df_Aq$L.PredBM:df_Aq$temp_A:df_Aq$L.PreyBM)
 summary(m5_aq)
 
-anova(m4_aq,m5_aq)
-plot(m5_aq)
+
+m6_aq<-update(m5_aq, ~.-df_Aq$temp_A:df_Aq$L.PreyBM)
+summary(m6_aq)
+
+m7_aq<-update(m6_aq,~.-df_Aq$L.PredBM:df_Aq$L.PreyBM)
+summary(m7_aq)
+
+#anova(m7_aq,m3_aq)
+plot(m7_aq)
 ```
 
-Aquatic models are much better behaved than terrestrial. THe model with Prey:Pred interaction is better than without ar 0.01.  Both models aslo have a three-way interaction.
+Aquatic model is reasonably well-behaved. 
+
+**lnTh=0.88x-1+1.08Temp_A**
 
 Let's try a simpler model.
 
-```{r echo=FALSE,fig.width=10, fig.height=10}
+```{r echo=FALSE,fig.width=10, fig.height=10, eval=FALSE}
 
-m6_aq<-lm(df_Aq$L.Fitted.a..median.of.BS.samples.~df_Aq$L.PredBM+df_Aq$L.PreyBM+df_Aq$temp_A)
+m8_aq<-lm(df_Aq$L.Fitted.a..median.of.BS.samples.~df_Aq$L.PredBM+df_Aq$L.PreyBM+df_Aq$temp_A)
 
-summary(m6_aq)
-drop1(m6_aq)
+summary(m8_aq)
 
-m7_aq<-update(m6_aq,~.-df_Aq$L.PreyBM)
-summary(m7_aq)
+m9_aq<-update(m8_aq,~.-df_Aq$L.PreyBM)
+summary(m9_aq)
 
 op<-par(mfrow=c(2,2))
 plot(m7_aq)
 
 ```
-
-A relatively well-behaved model (aquatic): **Th=0.88x+(-7.06+1.08xTemp_A)**.
 
 ```{r}
 df_Aq_na<-df_Aq[,c(1,3,5)]
