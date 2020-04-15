@@ -1305,6 +1305,153 @@ plot(m6)
 
 This model includes 3 and 4-way interactions adn is too complex to be practical so I'll just re-fit for the two habitats. THe fits are not the greatest either.
 
+**Ectotherms vs Endotherms** (15/04/2020)
+
+```{r echo=FALSE}
+
+df$EctoEndo<-as.factor(df$EctoEndo)
+
+plot(df$L.Fitted.a..median.of.BS.samples.~df$EctoEndo)
+
+
+summary(aov(df$L.Fitted.a..median.of.BS.samples.~df$EctoEndo))
+
+```
+
+Attack rates for endotherms are significantly higher than for ectotherms.
+
+```{r echo=FALSE,fig.width=10, fig.height=10}
+
+e1<-lm(L.Fitted.a..median.of.BS.samples.~L.PredBM*L.PreyBM*temp_A*EctoEndo, data=df)
+summary(e1)
+
+e2<-update(e1,~.-L.PredBM:L.PreyBM:temp_A:EctoEndo)
+summary(e2)
+
+e3<-update(e2,~.-L.PreyBM:temp_A:EctoEndo)
+summary(e3)
+
+e4<-update(e3, ~. -L.PredBM:EctoEndo)
+summary(e4)
+
+e5<-update(e4,~. -L.PreyBM)
+summary(e5)
+
+e6<-update(e5,~. -L.PredBM:L.PreyBM)
+summary(e6)
+
+e7<-update(e6, ~. -EctoEndo)
+summary(e7)
+
+e8<-update(e7, ~. -L.PreyBM:EctoEndo)
+summary(e8)
+
+
+#drop1(e1)
+
+op<-par(mfrow=c(2,2))
+
+plot(e8)
+
+```
+
+If fitted together, we end with a complex model that includes 2- and 3-way interactions. 
+
+The model is not brilliant but not the worst I've seen.
+
+
+**Ectotherms**
+
+Interactive:
+
+```{r echo=FALSE,fig.width=10, fig.height=10}
+
+
+detach(df)
+
+df_Ecto<-df[df$EctoEndo=="Ecto",]
+
+ec1<-lm(df_Ecto$L.Fitted.a..median.of.BS.samples.~df_Ecto$L.PredBM*df_Ecto$L.PreyBM*df_Ecto$temp_A)
+summary(ec1)
+
+#delete interaction
+ec2<-update(ec1,~.-df_Ecto$L.PredBM:df_Ecto$L.PreyBM)
+summary(ec2)
+
+ec3<-update(ec2, ~.-df_Ecto$L.PreyBM)
+summary(ec3)
+
+op<-par(mfrow=c(2,2))
+plot(ec3)
+
+```
+
+The model inlcudes 2- and 3-way interactions. Fit is ok.
+
+Additive:
+
+```{r echo=FALSE,fig.width=10, fig.height=10}
+
+
+ec4<-lm(df_Ecto$L.Fitted.a..median.of.BS.samples.~df_Ecto$L.PredBM+df_Ecto$L.PreyBM+df_Ecto$temp_A)
+summary(ec4)
+
+
+ec5<-update(ec4, ~.-df_Ecto$L.PreyBM)
+summary(ec5)
+
+op<-par(mfrow=c(2,2))
+plot(ec3)
+
+table(df$Habitat,df$EctoEndo)
+
+```
+
+**Endotherms**
+
+Interactive
+
+
+```{r echo=FALSE,fig.width=10, fig.height=10}
+
+
+df_Endo<-df[df$EctoEndo=="Endo",]
+
+ed1<-lm(df_Endo$L.Fitted.a..median.of.BS.samples.~df_Endo$L.PredBM*df_Endo$L.PreyBM*df_Endo$temp_A)
+summary(ed1)
+
+#delete interaction
+ed2<-update(ed1,~.-df_Endo$L.PredBM:df_Endo$L.PreyBM:df_Endo$temp_A)
+summary(ed2)
+
+ed3<-update(ed2, ~.-df_Endo$L.PreyBM:df_Endo$temp_A)
+summary(ed3)
+
+
+
+#Abandoned - no significant terns
+
+```
+
+
+Additive
+
+```{r echo=FALSE,fig.width=10, fig.height=10}
+
+
+ed4<-lm(df_Endo$L.Fitted.a..median.of.BS.samples.~df_Endo$L.PredBM+df_Endo$L.PreyBM+df_Endo$temp_A)
+summary(ed4)
+
+#delete interaction
+ed5<-update(ed4,~.-df_Endo$L.PredBM)
+summary(ed5)
+
+ed3<-update(ed2, ~.-df_Endo$L.PreyBM:df_Endo$temp_A)
+summary(ed3)
+
+
+```
+
 
 1. Terrestrial:
 ---
@@ -1312,7 +1459,6 @@ This model includes 3 and 4-way interactions adn is too complex to be practical 
 ```{r echo=FALSE,fig.width=10, fig.height=10}
 
 
-detach(df)
 
 df_Terr<-df[df$Habitat=="Terrestrial",]
 
@@ -1370,7 +1516,7 @@ However, the model is rearly poor with a lot of trends and skew.
 Without prey body mass the model for terrestrial is : **Th=0.75x+(-1.48+0.58xTemp_A)**.
 
 
-```{r}
+```{r echo=FALSE,fig.width=10, fig.height=10}
 df_Terr_na<-df_Terr[,c(1,3,5)]
 df_Terr_na<-na.omit(df_Terr_na)
 #summary(df_sSet_Terr_na)
@@ -1381,6 +1527,128 @@ ggPredict(m6_terr_na, interactive = TRUE)
 
 
 ```
+
+
+
+**Ecotherms vs Endotherms**
+
+*Ectotherms*
+
+```{r echo=FALSE,fig.width=10, fig.height=10}
+
+
+df_Terr_Ecto<-df_Terr[df_Terr$EctoEndo=="Ecto",]
+
+ec1_terr<-lm(df_Terr_Ecto$L.Fitted.a..median.of.BS.samples.~df_Terr_Ecto$L.PredBM*df_Terr_Ecto$L.PreyBM*df_Terr_Ecto$temp_A)
+summary(ec1_terr)
+
+#delete interaction
+ec2_terr<-update(ec1_terr,~.-df_Terr_Ecto$L.PredBM:df_Terr_Ecto$L.PreyBM:df_Terr_Ecto$temp_A)
+summary(ec2_terr)
+
+ec3_terr<-update(ec2_terr, ~.-df_Terr_Ecto$L.PredBM:df_Terr_Ecto$L.PreyBM)
+summary(ec3_terr)
+
+ec4_terr<-update(ec3_terr, ~.-df_Terr_Ecto$L.PreyBM)
+summary(ec4_terr)
+
+ec5_terr<-update(ec4_terr,~. -df_Terr_Ecto$L.PredBM:df_Terr_Ecto$temp_A)
+summary(ec5_terr)
+
+op<-par(mfrow=c(2,2))
+plot(ec5_terr)
+
+
+```
+
+
+The model includes a couple of 2-way and 3-way interactions..The fit is not the best but not too horrible.
+
+
+Try an additive model.
+
+
+```{r echo=FALSE,fig.width=10, fig.height=10}
+
+ec6_terr<-lm(df_Terr_Ecto$L.Fitted.a..median.of.BS.samples.~df_Terr_Ecto$L.PredBM+df_Terr_Ecto$L.PreyBM+df_Terr_Ecto$temp_A)
+
+summary(ec6_terr)
+
+drop1(ec6_terr)
+
+ec7_terr<-update(ec6_terr, ~.-df_Terr_Ecto$temp_A)
+summary(ec7_terr)
+
+op<-par(mfrow=c(2,2))
+plot(m5_terr)
+
+#try to remove prey body mass
+m6_terr<-update(m5_terr,~. -df_Terr$L.PreyBM)
+summary(m6_terr)
+plot(m6_terr)
+
+#anova(m5_terr,m6_terr)
+
+```
+
+*Endotherms*
+
+```{r echo=FALSE,fig.width=10, fig.height=10}
+
+
+df_Terr_Endo<-df_Terr[df_Terr$EctoEndo=="Endo",]
+
+ed1_terr<-lm(df_Terr_Endo$L.Fitted.a..median.of.BS.samples.~df_Terr_Endo$L.PredBM*df_Terr_Endo$L.PreyBM*df_Terr_Endo$temp_A)
+summary(ed1_terr)
+
+#delete interaction
+ed2_terr<-update(ed1_terr,~.-df_Terr_Endo$L.PredBM:df_Terr_Endo$L.PreyBM:df_Terr_Endo$temp_A)
+summary(ed2_terr)
+
+ed3_terr<-update(ed2_terr, ~.-df_Terr_Endo$L.PreyBM:df_Terr_Endo$temp_A)
+summary(ed3_terr)
+
+ed4_terr<-update(ed3_terr,~.-df_Terr_Endo$L.PredBM:df_Terr_Endo$temp_A)
+summary(ed4_terr)
+
+ed5_terr<-update(ed4_terr,~.-df_Terr_Endo$L.PredBM:df_Terr_Endo$L.PreyBM)
+summary(ed5_terr)
+
+
+op<-par(mfrow=c(2,2))
+#plot(ed_terr)
+
+
+```
+
+
+The model includes a couple of 2-way and 3-way interactions..The fit is not the best but not too horrible.
+
+
+Try an additive model.
+
+
+```{r echo=FALSE,fig.width=10, fig.height=10}
+
+ec4_terr<-lm(df_Terr_Ecto$L.Fitted.a..median.of.BS.samples.~df_Terr_Ecto$L.PredBM+df_Terr_Ecto$L.PreyBM+df_Terr_Ecto$temp_A)
+
+summary(ec4_terr)
+
+ec5_terr<-update(ec4_terr, ~.-df_Terr_Ecto$L.PreyBM)
+summary(ec5_terr)
+
+op<-par(mfrow=c(2,2))
+plot(m5_terr)
+
+#try to remove prey body mass
+m6_terr<-update(m5_terr,~. -df_Terr$L.PreyBM)
+summary(m6_terr)
+plot(m6_terr)
+
+#anova(m5_terr,m6_terr)
+
+```
+
 
 
 Aquatic:
@@ -1447,7 +1715,7 @@ plot(m7_aq)
 
 ```
 
-```{r}
+```{r echo=FALSE,fig.width=7, fig.height=10}
 df_Aq_na<-df_Aq[,c(1,3,5)]
 df_Aq_na<-na.omit(df_Aq_na)
 #summary(df_sSet_Terr_na)
